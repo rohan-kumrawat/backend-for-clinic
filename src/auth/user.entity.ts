@@ -1,8 +1,9 @@
-import { Column, Entity } from 'typeorm';
+import { Column, Entity, Index } from 'typeorm';
 import { BaseEntity } from '../common/base/base.entity';
 import { RoleEnum } from '../common/enums/role.enum';
 
 @Entity('users')
+
 export class User extends BaseEntity {
   @Column({ type: 'varchar', length: 100, nullable: false, unique: true })
   username!: string;
@@ -24,11 +25,11 @@ export class User extends BaseEntity {
   @Column({ type: 'varchar', length: 100, nullable: false })
   name!: string;
 
-  @Column({ type: 'varchar', length: 15, nullable: true })
+  @Column({ type: 'varchar', length: 20, nullable: false })
   mobile!: string | null;
 
-  @Column({ type: 'varchar', length: 100, nullable: true, unique: true })
-  email!: string | null;
+  @Column({ type: 'varchar', length: 100, nullable: false })
+  email!: string;
 
   @Column({ type: 'integer', default: 0, nullable: false })
   failedLoginAttempts!: number;

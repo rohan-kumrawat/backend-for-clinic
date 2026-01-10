@@ -1,61 +1,81 @@
-import { Injectable, ServiceUnavailableException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { createHash } from 'crypto';
-
-export interface IdempotencyRecord {
-  key: string;
-  hash: string;
-  response?: any;
-  status?: number;
-}
+import { IdempotencyKey } from './idempotency.entity';
+import { IdempotencyStatus, HttpMethod } from './idempotency.types';
 
 @Injectable()
 export class IdempotencyService {
-  private readonly store = new Map<string, IdempotencyRecord>();
+  constructor(
+    @InjectRepository(IdempotencyKey)
+    private readonly repo: Repository<IdempotencyKey>,
+  ) {}
 
   generateRequestHash(
     body: any,
     params: Record<string, any> = {},
     query: Record<string, any> = {},
   ): string {
-    const data = JSON.stringify({ body, params, query });
-    return createHash('sha256').update(data).digest('hex');
+    return createHash('sha256')
+      .update(JSON.stringify({ body, params, query }))
+      .digest('hex');
   }
 
-  checkRequest(
+  async checkOrCreate(
     key: string,
     hash: string,
-  ): { replay: boolean; response?: any; status?: number } {
-    const existing = this.store.get(key);
+    endpoint: string,
+    method: HttpMethod,
+    userId?: string,
+  ): Promise<IdempotencyKey> {
+    const existing = await this.repo.findOne({
+      where: { idempotencyKey: key },
+    });
 
     if (!existing) {
-      this.store.set(key, { key, hash });
-      return { replay: false };
+      const record = this.repo.create({
+        idempotencyKey: key,
+        requestHash: hash,
+        endpoint,
+        method,
+        userId: userId ?? null,
+        status: IdempotencyStatus.PENDING,
+      });
+
+      return this.repo.save(record);
     }
 
-    if (existing.hash !== hash) {
+    if (existing.requestHash !== hash) {
       throw new ConflictException('IDEMPOTENCY_KEY_CONFLICT');
     }
 
-    if (existing.response) {
-      return {
-        replay: true,
-        response: existing.response,
-        status: existing.status,
-      };
+    if (existing.status === IdempotencyStatus.COMPLETED) {
+      return existing;
     }
 
     throw new ServiceUnavailableException('REQUEST_IN_PROGRESS');
   }
 
-  storeSuccess(key: string, status: number, response: any) {
-    const record = this.store.get(key);
-    if (!record) return;
+  async markSuccess(
+    record: IdempotencyKey,
+    statusCode: number,
+    responseBody: any,
+  ): Promise<void> {
+    record.status = IdempotencyStatus.COMPLETED;
+    record.responseStatus = statusCode;
+    record.responseBody = responseBody;
+    record.completedAt = new Date();
 
-    record.response = response;
-    record.status = status;
+    await this.repo.save(record);
   }
 
-  storeFailure(key: string) {
-    this.store.delete(key);
+  async markFailure(record: IdempotencyKey): Promise<void> {
+    record.status = IdempotencyStatus.FAILED;
+    await this.repo.save(record);
   }
 }

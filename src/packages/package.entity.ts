@@ -4,6 +4,8 @@ import { PackageStatusEnum } from '../common/enums/package-status.enum';
 
 @Entity('packages')
 export class Package extends BaseEntity {
+  
+  @Index()
   @Column({ type: 'uuid', nullable: false })
   patientId!: string;
 

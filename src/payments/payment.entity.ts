@@ -5,9 +5,12 @@ import { PaymentModeEnum } from '../common/enums/payment-mode.enum';
 @Entity('payments')
 
 export class Payment extends BaseEntity {
+
+  @Index()
   @Column({ type: 'uuid', nullable: false })
   patientId!: string;
 
+  @Index()
   @Column({ type: 'uuid', nullable: false })
   packageId!: string;
 

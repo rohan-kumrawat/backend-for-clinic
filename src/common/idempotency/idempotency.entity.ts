@@ -1,64 +1,64 @@
 import {
   Entity,
   Column,
-  PrimaryGeneratedColumn,
-  CreateDateColumn,
-  UpdateDateColumn,
   Index,
   BeforeInsert,
 } from 'typeorm';
+import { BaseEntity } from '../base/base.entity';
 import { IdempotencyStatus, HttpMethod } from './idempotency.types';
 
 @Entity('idempotency_keys')
-@Index(['idempotencyKey'], { unique: true })
-export class IdempotencyKey {
-  @PrimaryGeneratedColumn('uuid')
-  id!: string;
+@Index('IDX_IDEMPOTENCY_KEY_METHOD', ['idempotencyKey', 'method'], { unique: true })
+@Index('IDX_IDEMPOTENCY_EXPIRES', ['expiresAt'])
+export class IdempotencyKey extends BaseEntity {
 
-  @Column()
+  @Column({ type: 'varchar', length: 100, nullable: false })
   idempotencyKey!: string;
 
   @Column({ type: 'uuid', nullable: true })
   userId!: string | null;
 
-  @Column()
+  @Column({ type: 'varchar', length: 255, nullable: false })
   endpoint!: string;
 
-  @Column({ type: 'varchar' })
+  @Column({
+    type: 'enum',
+    enum: HttpMethod,
+    nullable: false,
+  })
   method!: HttpMethod;
 
-  @Column()
+  @Column({ type: 'varchar', length: 64, nullable: false })
   requestHash!: string;
 
   @Column({ type: 'jsonb', nullable: true })
-  requestParams!: any;
+  requestParams!: Record<string, any> | null;
 
   @Column({ type: 'jsonb', nullable: true })
-  requestBody!: any;
+  requestBody!: Record<string, any> | null;
 
   @Column({ type: 'jsonb', nullable: true })
-  responseBody!: any;
+  responseBody!: Record<string, any> | null;
 
-  @Column({ type: 'int', nullable: true })
+  @Column({ type: 'integer', nullable: true })
   responseStatus!: number | null;
 
-  @Column({ default: 'pending' })
+  @Column({
+    type: 'enum',
+    enum: IdempotencyStatus,
+    default: IdempotencyStatus.PENDING,
+    nullable: false,
+  })
   status!: IdempotencyStatus;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   lockedAt!: Date | null;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ type: 'timestamptz', nullable: true })
   completedAt!: Date | null;
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: 'timestamptz', nullable: false })
   expiresAt!: Date;
-
-  @CreateDateColumn()
-  createdAt!: Date;
-
-  @UpdateDateColumn()
-  updatedAt!: Date;
 
   @BeforeInsert()
   setExpiry() {

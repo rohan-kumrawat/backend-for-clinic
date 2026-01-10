@@ -5,6 +5,8 @@ import { FinancialStatusEnum } from '../common/enums/financial-status.enum';
 @Entity('financial_summaries')
 
 export class FinancialSummary extends BaseEntity {
+
+  @Index()
   @Column({ type: 'uuid', nullable: false })
   patientId!: string;
 

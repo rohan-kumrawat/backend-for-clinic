@@ -1,4 +1,4 @@
-import { Column, Entity, OneToMany } from 'typeorm'; 
+import { Column, Entity, Index, OneToMany } from 'typeorm'; 
 import { BaseEntity } from '../common/base/base.entity'; 
 import { GenderEnum } from '../common/enums/gender.enum'; 
 import { PatientStatusEnum } from '../common/enums/patient-status.enum'; 
@@ -43,8 +43,9 @@ gender!: GenderEnum;
 ({ 
   type: 'varchar', 
   length: 15, 
-  nullable: false 
-}) 
+  nullable: false, 
+})
+@Index({ unique: true }) 
 mobile!: string; 
 
 @Column

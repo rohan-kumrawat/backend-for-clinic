@@ -1,11 +1,17 @@
-export type HttpMethod = 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+export enum HttpMethod {
+  GET = 'GET',
+  POST = 'POST',
+  PUT = 'PUT',
+  PATCH = 'PATCH',
+  DELETE = 'DELETE',
+}
 
-export type IdempotencyStatus =
-  | 'pending'
-  | 'processing'
-  | 'completed'
-  | 'failed'
-  | 'conflict';
+export enum IdempotencyStatus {
+  PENDING = 'PENDING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+}
+
 
 export interface IdempotencyOptions {
   ttlHours?: number;

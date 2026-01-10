@@ -10,6 +10,7 @@ import { Request, Response } from 'express';
 import { Reflector } from '@nestjs/core';
 import { IdempotencyService } from './idempotency.service';
 import { IDEMPOTENCY_OPTIONS_KEY } from './idempotency.decorator';
+import { IdempotencyStatus, HttpMethod } from './idempotency.types';
 
 @Injectable()
 export class IdempotencyInterceptor implements NestInterceptor {
@@ -20,7 +21,10 @@ export class IdempotencyInterceptor implements NestInterceptor {
     private readonly reflector: Reflector,
   ) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  async intercept(
+    context: ExecutionContext,
+    next: CallHandler,
+  ): Promise<Observable<any>> {
     const enabled = this.reflector.get<boolean>(
       IDEMPOTENCY_OPTIONS_KEY,
       context.getHandler(),
@@ -44,21 +48,31 @@ export class IdempotencyInterceptor implements NestInterceptor {
       req.query,
     );
 
-    const check = this.service.checkRequest(key, hash);
+    const record = await this.service.checkOrCreate(
+      key,
+      hash,
+      req.originalUrl,
+      req.method as HttpMethod,
+      (req as any).user?.userId,
+    );
 
-    // ✅ DUPLICATE REQUEST → RETURN CACHED RESPONSE & TERMINATE STREAM
-    if (check.replay) {
-      res.status(check.status || 200).json(check.response);
-      return EMPTY; // 🔥 THIS IS THE FIX
+    if (record.status === IdempotencyStatus.COMPLETED) {
+      res
+        .status(record.responseStatus ?? 200)
+        .json(record.responseBody);
+      return EMPTY;
     }
 
-    // ✅ FIRST REQUEST → ALLOW EXECUTION
     return next.handle().pipe(
-      tap((data) => {
-        this.service.storeSuccess(key, res.statusCode, data);
+      tap(async (data) => {
+        await this.service.markSuccess(
+          record,
+          res.statusCode,
+          data,
+        );
       }),
-      catchError((err) => {
-        this.service.storeFailure(key);
+      catchError(async (err) => {
+        await this.service.markFailure(record);
         throw err;
       }),
     );

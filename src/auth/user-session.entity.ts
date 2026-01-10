@@ -17,7 +17,7 @@ export class UserSession extends BaseEntity {
   })
   role!: RoleEnum;
 
-  @Column({ type: 'varchar', length: 100, nullable: false })
+  @Column({ type: 'varchar', length: 100, nullable: false, unique: true })
   jwtId!: string;
 
   @Column({ type: 'varchar', length: 45, nullable: false })

@@ -7,7 +7,7 @@ import { RoleEnum } from '../enums/role.enum';
 @Index('IDX_AUDIT_ACTOR', ['actorId'])
 @Index('IDX_AUDIT_CREATED_AT', ['createdAt'])
 export class AuditLog extends BaseEntity {
-  @Column({ type: 'uuid', nullable: false })
+  @Column({ type: 'uuid', nullable: true })
   actorId!: string | null;
 
   @Column({
@@ -17,20 +17,14 @@ export class AuditLog extends BaseEntity {
   })
   actorRole!: RoleEnum;
 
-  @Column({ type: 'varchar', length: 100, nullable: false })
+  @Column({ type: 'varchar', length: 50 })
   action!: string;
 
-  @Column({ type: 'varchar', length: 100, nullable: false })
+  @Column({ type: 'varchar', length: 50 })
   entity!: string;
 
   @Column({ type: 'uuid', nullable: true })
   entityId!: string | null;
-
-  @Column({ type: 'jsonb', nullable: true })
-  oldValue!: Record<string, any> | null;
-
-  @Column({ type: 'jsonb', nullable: true })
-  newValue!: Record<string, any> | null;
 
   @Column({ type: 'jsonb', nullable: true })
   requestData!: Record<string, any> | null;
@@ -44,10 +38,10 @@ export class AuditLog extends BaseEntity {
   @Column({ type: 'text', nullable: true })
   userAgent!: string | null;
 
-  @Column({ type: 'varchar', length: 500, nullable: true })
-  endpoint!: string | null;
+  @Column({ type: 'varchar', length: 255 })
+  endpoint!: string;
 
-  @Column({ type: 'varchar', length: 10, nullable: false })
+  @Column({ type: 'varchar', length: 10 })
   method!: string;
 
   @Column({ type: 'integer', nullable: true })

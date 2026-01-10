@@ -3,14 +3,19 @@ import { BaseEntity } from '../common/base/base.entity';
 import { SessionShiftEnum } from '../common/enums/session-shift.enum';
 
 @Entity('sessions')
-
+@Index('IDX_SESSION_PATIENT_DATE', ['patientId', 'sessionDate'])
+@Index('IDX_SESSION_DOCTOR_DATE', ['doctorId', 'sessionDate'])
 export class Session extends BaseEntity {
+
+  @Index()
   @Column({ type: 'uuid', nullable: false })
   patientId!: string;
 
+  @Index()
   @Column({ type: 'uuid', nullable: false })
   packageId!: string;
 
+  @Index()
   @Column({ type: 'uuid', nullable: false })
   doctorId!: string;
 

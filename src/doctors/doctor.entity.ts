@@ -1,10 +1,11 @@
-import { Column, Entity } from 'typeorm';
+import { Column, Entity, Index } from 'typeorm';
 import { BaseEntity } from '../common/base/base.entity';
 import { DoctorStatusEnum } from '../common/enums/doctor-status.enum';
 
 @Entity('doctors')
 export class Doctor extends BaseEntity {
   @Column({ type: 'varchar', length: 100, nullable: false })
+  @Index({ unique: true })
   name!: string;
 
   @Column({ type: 'varchar', length: 100, nullable: true })

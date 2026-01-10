@@ -19,6 +19,8 @@ export enum BackupType {
 @Index('IDX_BACKUP_STATUS', ['status', 'isDeleted'])
 @Index('IDX_BACKUP_CREATED_AT', ['createdAt'])
 export class Backup extends BaseEntity {
+
+  @Index({ unique: true })
   @Column({ type: 'varchar', length: 100, nullable: false })
   filename!: string;
 
@@ -56,10 +58,10 @@ export class Backup extends BaseEntity {
   @Column({ type: 'varchar', length: 100, nullable: true })
   databaseVersion!: string | null;
 
-  @Column({ type: 'integer', nullable: false })
+  @Column({ type: 'integer', nullable: true })
   tableCount!: number;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2, nullable: true })
+  @Column({ type: 'integer', nullable: true })
   backupDuration!: number | null;
 
   @Column({ type: 'text', nullable: true })

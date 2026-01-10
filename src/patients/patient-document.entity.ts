@@ -5,11 +5,13 @@ import {
   ManyToOne,
   JoinColumn,
   CreateDateColumn,
+  Index,
 } from 'typeorm';
 import { BaseEntity } from '../common/base/base.entity';
 import { Patient } from './patient.entity';
 
 @Entity('patient_documents')
+@Index('IDX_PATIENT_DOCUMENT_PATIENT', ['patientId'])
 export class PatientDocument extends BaseEntity {
   @Column({ type: 'uuid' })
   patientId!: string;
