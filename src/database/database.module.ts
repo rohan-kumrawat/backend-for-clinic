@@ -8,21 +8,21 @@ import { TypeOrmModuleOptions } from '@nestjs/typeorm';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: (config: ConfigService): TypeOrmModuleOptions => {
-        const isProd = config.get('environment') === 'production';
+      useFactory: (configService: ConfigService): TypeOrmModuleOptions => {
+        const isProd = configService.get('environment') === 'production';
 
         return {
           type: 'postgres',
           url: isProd ? process.env.DATABASE_URL : undefined,
 
-          host: !isProd ? config.get('database.host') : undefined,
-          port: !isProd ? config.get<number>('database.port') : undefined,
-          username: !isProd ? config.get('database.username') : undefined,
-          password: !isProd ? config.get('database.password') : undefined,
-          database: !isProd ? config.get('database.name') : undefined,
+          host: !isProd ? configService.get('database.host') : undefined,
+          port: !isProd ? configService.get<number>('database.port') : undefined,
+          username: !isProd ? configService.get('database.username') : undefined,
+          password: !isProd ? configService.get('database.password') : undefined,
+          database: !isProd ? configService.get('database.name') : undefined,
 
           autoLoadEntities: true,
-          synchronize: false,   
+          synchronize: configService.get<boolean>('database.sync') ?? false,  
           logging: !isProd,
           ssl: isProd ? { rejectUnauthorized: false } : false,
         };

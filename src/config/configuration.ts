@@ -7,6 +7,7 @@ export default () => ({
     username: process.env.DB_USERNAME || 'postgres',
     password: process.env.DB_PASSWORD || 'postgres',
     name: process.env.DB_NAME || 'physio_db',
+    sync: process.env.DB_SYNC === 'true',
   },
   jwt: {
     secret: process.env.JWT_SECRET || 'super_secret_key',
