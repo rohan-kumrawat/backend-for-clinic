@@ -1,0 +1,7 @@
+export enum PackageStatusEnum {
+  ACTIVE = 'ACTIVE',
+  PAUSED = 'PAUSED',
+  COMPLETED = 'COMPLETED',
+  CLOSED_EARLY = 'CLOSED_EARLY',
+  CANCELLED = 'CANCELLED',
+}
