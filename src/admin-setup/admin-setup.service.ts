@@ -12,36 +12,43 @@ export class AdminSetupService {
     private readonly userRepo: Repository<User>,
   ) {}
 
-  async createAdmin() {
-    const username = process.env.ADMIN_USERNAME!;
-    const password = process.env.ADMIN_PASSWORD!;
-    const name = process.env.ADMIN_NAME!;
-    const email = process.env.ADMIN_EMAIL!;
-    const mobile = process.env.ADMIN_MOBILE!;
+  async createAdmin(payload: {
+  username: string;
+  password: string;
+  name: string;
+  email: string;
+  mobile: string;
+}) {
+  const { username, password, name, email, mobile } = payload;
 
-    const existing = await this.userRepo.findOne({
-      where: { username, isDeleted: false },
-    });
-
-    if (existing) {
-      return { message: 'Admin already exists' };
-    }
-
-    const hash = await bcrypt.hash(password, 10);
-
-    const admin = this.userRepo.create({
-      username,
-      password: hash,
-      role: RoleEnum.ADMIN,
-      isActive: true,
-      name,
-      email,
-      mobile,
-      failedLoginAttempts: 0,
-    });
-
-    await this.userRepo.save(admin);
-
-    return { message: 'Admin created successfully' };
+  if (!password) {
+    throw new Error('Password missing');
   }
+
+  const existing = await this.userRepo.findOne({
+    where: { username, isDeleted: false },
+  });
+
+  if (existing) {
+    return { message: 'Admin already exists' };
+  }
+
+  const hash = await bcrypt.hash(password, 10);
+
+  const admin = this.userRepo.create({
+    username,
+    password: hash,
+    role: RoleEnum.ADMIN,
+    isActive: true,
+    name,
+    email,
+    mobile,
+    failedLoginAttempts: 0,
+  });
+
+  await this.userRepo.save(admin);
+
+  return { message: 'Admin created successfully' };
+}
+
 }
