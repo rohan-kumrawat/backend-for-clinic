@@ -12,17 +12,17 @@ export class AdminSetupService {
     private readonly userRepo: Repository<User>,
   ) {}
 
-  async createAdmin(payload: {
+  async createAdmin(data: {
   username: string;
   password: string;
   name: string;
   email: string;
   mobile: string;
 }) {
-  const { username, password, name, email, mobile } = payload;
+  const { username, password, name, email, mobile } = data;
 
   if (!password) {
-    throw new Error('Password missing');
+    throw new Error('Password missing in request body');
   }
 
   const existing = await this.userRepo.findOne({
@@ -50,5 +50,6 @@ export class AdminSetupService {
 
   return { message: 'Admin created successfully' };
 }
+
 
 }
