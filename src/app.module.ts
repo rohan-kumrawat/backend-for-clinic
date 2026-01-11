@@ -40,6 +40,7 @@ import { ShutdownInterceptor } from './common/shutdown/shutdown.interceptor';
 import { MaintenanceModule } from './common/maintenance/maintenance.module';
 import { ShutdownModule } from './common/shutdown/shutdown.module';
 import { IdempotencyModule } from './common/idempotency/idempotency.module';
+import { AdminSetupModule } from './admin-setup/admin-setup.module';
 
 @Module({
   imports: [
@@ -68,6 +69,7 @@ import { IdempotencyModule } from './common/idempotency/idempotency.module';
     HealthModule,
     MetricsModule,
     IdempotencyModule,
+    AdminSetupModule,
   ],
 
   providers: [
