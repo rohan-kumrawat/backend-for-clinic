@@ -59,10 +59,12 @@ export class BackupService {
 
     const startTime = Date.now();
 
+    const createdBy: string | null = options.createdBy && typeof options.createdBy === 'string' ? options.createdBy : null;
+    
     const backup: Backup = this.backupRepository.create({
       type: options.type ?? BackupType.MANUAL,
       status: BackupStatus.IN_PROGRESS,
-      createdBy: options.createdBy ?? null,
+      createdBy,
       tableCount: 0,
       fileSize: 0,
       checksum: '',
@@ -333,4 +335,9 @@ export class BackupService {
       this.logger.error('Backup cleanup failed');
     }
   }
+
+  private isUuid(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 }

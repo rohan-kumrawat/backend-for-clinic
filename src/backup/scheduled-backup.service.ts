@@ -23,7 +23,7 @@ export class ScheduledBackupService {
       // Create a system backup (no user context)
       const backup = await this.backupService.createBackup({
         type: BackupType.SCHEDULED,
-        createdBy: 'system',
+        createdBy: null,
       });
       
       this.logger.log(`Scheduled backup completed: ${backup.id}`);

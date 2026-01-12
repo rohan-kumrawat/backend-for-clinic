@@ -8,9 +8,11 @@ export class AdminSetupController {
 
   @Post()
   async createAdmin(
+    
     @Headers('x-admin-setup-secret') secret: string,
     @Body() body: AdminSetupDto,
   ) {
+    console.log('BODY RECEIVED =>', body);
     if (secret !== process.env.ADMIN_SETUP_SECRET) {
       throw new ForbiddenException('Invalid setup secret');
     }

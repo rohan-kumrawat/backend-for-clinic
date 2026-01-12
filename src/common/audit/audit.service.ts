@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { AuditLog } from './audit.entity';
 import { RoleEnum } from '../enums/role.enum';
 
-const SYSTEM_ACTOR_ID = 'system';
+const SYSTEM_ACTOR_ID = null;
 const SYSTEM_ROLE = RoleEnum.ADMIN;
 
 export interface AuditLogInput {
