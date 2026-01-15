@@ -7,7 +7,6 @@ import {
   HealthIndicatorResult,
 } from '@nestjs/terminus';
 import { DataSource } from 'typeorm';
-import { BackupService } from '../../backup/backup.service';
 import { LoggerService } from '../logger/logger.service';
 
 @Controller('health')
@@ -17,7 +16,6 @@ export class HealthController {
     private readonly db: TypeOrmHealthIndicator,
     private readonly memory: MemoryHealthIndicator,
     private readonly dataSource: DataSource,
-    private readonly backupService: BackupService,
     private readonly logger: LoggerService,
   ) {}
 
@@ -42,10 +40,7 @@ export class HealthController {
       
       // Memory health
       () => this.memory.checkHeap('memory_heap', 150 * 1024 * 1024), // 150MB threshold
-      
-      // Backup module health
-      () => this.checkBackupModule(),
-      
+           
       // Custom application health checks
       () => this.checkAppReadiness(),
     ]);
@@ -66,45 +61,7 @@ export class HealthController {
     };
   }
 
-  private async checkBackupModule(): Promise<HealthIndicatorResult> {
-    try {
-      const health = await this.backupService.getSystemHealth();
-      
-      if (!health.databaseConnected) {
-        return {
-          backup_module: {
-            status: 'down',
-            message: 'Database connection failed',
-          },
-        };
-      }
-
-      if (health.isRestoring) {
-        return {
-          backup_module: {
-            status: 'down',
-            message: 'Backup restore in progress',
-          },
-        };
-      }
-
-      return {
-        backup_module: {
-          status: 'up',
-          lastBackup: health.lastSuccessfulBackup,
-          backupCount: health.backupCount,
-        },
-      };
-    } catch (error) {
-        const err = error as Error;
-      return {
-        backup_module: {
-          status: 'down',
-          message: err.message,
-        },
-      };
-    }
-  }
+  
 
   private async checkAppReadiness(): Promise<HealthIndicatorResult> {
     try {

@@ -16,7 +16,6 @@ import { PaymentsModule } from './payments/payments.module';
 import { SessionsModule } from './sessions/sessions.module';
 import { ReportsModule } from './reports/reports.module';
 import { FinancialSummaryModule } from './financial-summary/financial-summary.module';
-import { BackupModule } from './backup/backup.module';
 
 import { AuditModule } from './common/audit/audit.module';
 import { AuditInterceptor } from './common/audit/audit.interceptor';
@@ -65,7 +64,6 @@ import { AdminSetupModule } from './admin-setup/admin-setup.module';
     SessionsModule,
     ReportsModule,
     FinancialSummaryModule,
-    BackupModule,
     HealthModule,
     MetricsModule,
     IdempotencyModule,
