@@ -11,11 +11,10 @@ async function bootstrap() {
     origin: [
       'http://localhost:3000',
       'http://localhost:5173',
-      'https://physiodash-hub.vercel.app/',
       'https://physiodash-hub.vercel.app'
     ],
-    methods: ['GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS'],
-    allowedHeaders: ['Origin, X-Requested-With, Content-Type, Accept, Authorization', 'x-admin-secret'],
+    methods: ['GET','HEAD','PUT','PATCH','POST','DELETE','OPTIONS'],
+    allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization', 'x-admin-secret'],
     credentials: true,
   }
 );
