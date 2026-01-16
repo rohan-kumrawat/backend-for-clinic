@@ -99,7 +99,7 @@ export const SECURITY_CONFIG: SecurityConfig = {
       'application/x-www-form-urlencoded', 
       'multipart/form-data'
     ],
-    enableCors: true,
+    enableCors: false,
     enableHsts: true,
   },
 };
