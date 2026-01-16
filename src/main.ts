@@ -1,23 +1,38 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
-import { SECURITY_CONFIG } from './common/config/security.config';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api/v1');
 
+  const allowedOrigins =
+    process.env.CORS_ORIGINS?.split(',').map(o => o.trim()) ?? [];
+
   app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'https://physiodash-hub.vercel.app'
+    origin: (origin, callback) => {
+      // Allow server-to-server, Postman, curl, mobile apps
+      if (!origin) {
+        return callback(null, true);
+      }
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error(`CORS blocked for origin: ${origin}`), false);
+    },
+    methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+    allowedHeaders: [
+      'Origin',
+      'X-Requested-With',
+      'Content-Type',
+      'Accept',
+      'Authorization',
+      'x-admin-secret',
     ],
-    methods: ['GET','HEAD','PUT','PATCH','POST','DELETE','OPTIONS'],
-    allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization', 'x-admin-secret'],
     credentials: true,
-  }
-);
+  });
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -37,4 +52,5 @@ async function bootstrap() {
 
   await app.listen(process.env.PORT || 3000);
 }
+
 bootstrap();

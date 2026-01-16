@@ -9,6 +9,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { User } from './user.entity';
 import { UserSession } from './user-session.entity';
 import { ConfigService } from '@nestjs/config';
+import { EmailModule } from '../common/email/email.module';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { ConfigService } from '@nestjs/config';
     };
   },
 }),
+    EmailModule,
   ],
   controllers: [AuthController],
   providers: [AuthService, SessionService, JwtStrategy],

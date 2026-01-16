@@ -25,6 +25,7 @@ import { SECURITY_CONSTANTS } from '../common/constants/security.constants';
 import { SessionService } from './session.service';
 import { ClientInfo } from './types/client-info.type';
 import { LoggerService } from '../common/logger/logger.service';
+import { EmailService } from '../common/email/email.service';
 
 @Injectable()
 export class AuthService {
@@ -35,6 +36,7 @@ export class AuthService {
     private readonly auditService: AuditService,
     private readonly sessionService: SessionService,
     private readonly loggerService: LoggerService,
+    private readonly emailService: EmailService,
   ) {}
 
   /* ================= LOGIN ================= */
@@ -196,9 +198,13 @@ export class AuthService {
 
     user.passwordResetToken = hashed;
     user.passwordResetTokenExpiresAt = expiry;
-    await this.userRepository.save(user);
+    
+    await this.emailService.sendPasswordResetEmail(
+      user.email,
+      token,
+    );
+    return { message: 'Password reset link sent if account exists' };
 
-    return { token, expiresAt: expiry };
   }
 
   async confirmPasswordReset(
