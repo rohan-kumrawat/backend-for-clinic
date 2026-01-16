@@ -93,7 +93,7 @@ export const SECURITY_CONFIG: SecurityConfig = {
   apiHardening: {
     maxPayloadSize: 10 * 1024 * 1024, // 10MB
     maxJsonDepth: 10,
-    allowedMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'],
     allowedContentTypes: [
       'application/json', 
       'application/x-www-form-urlencoded', 

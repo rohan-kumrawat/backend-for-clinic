@@ -12,6 +12,10 @@ export class ApiHardeningMiddleware implements NestMiddleware {
   ) {}
 
   use(req: Request, res: Response, next: NextFunction): void {
+
+    if(req.method === 'OPTIONS'){
+      return next();
+    }
   try {
     const contentType = req.headers['content-type'] ?? '';
 
@@ -154,13 +158,5 @@ export class ApiHardeningMiddleware implements NestMiddleware {
       );
     }
 
-    // CORS if enabled
-    if (SECURITY_CONFIG.apiHardening.enableCors) {
-      res.setHeader('Access-Control-Allow-Origin', process.env.CORS_ORIGIN || '*');
-      res.setHeader('Access-Control-Allow-Methods', SECURITY_CONFIG.apiHardening.allowedMethods.join(', '));
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Request-Id');
-      res.setHeader('Access-Control-Allow-Credentials', 'true');
-      res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
-    }
   }
 }
