@@ -4,11 +4,12 @@ import { PackagesService } from './packages.service';
 import { PackagesController } from './packages.controller';
 import { Package } from './package.entity';
 import { PatientsModule } from '../patients/patients.module';
+import { Doctor } from '../doctors/doctor.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Package]),
-    PatientsModule
+    TypeOrmModule.forFeature([Package,Doctor]),
+    PatientsModule,
   ],
   controllers: [PackagesController],
   providers: [PackagesService],

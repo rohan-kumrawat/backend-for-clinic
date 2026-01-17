@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere, DataSource } from 'typeorm';
+import { Repository, FindOptionsWhere, DataSource, In } from 'typeorm';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Package } from './package.entity';
 import { CreatePackageDto } from './dto/create-package.dto';
@@ -25,10 +25,13 @@ export class PackagesService {
   constructor(
     @InjectRepository(Package)
     private readonly packageRepository: Repository<Package>,
+
+    @InjectRepository(Doctor)
+    private readonly doctorRepository: Repository<Doctor>,
+
     private readonly dataSource: DataSource,
     private readonly eventEmitter: EventEmitter2,
     private readonly patientsService: PatientsService,
-    private readonly doctorRepository: Repository<Doctor>
   ) { }
 
   //✅ CREATE PACKAGE → PATIENT ACTIVE
