@@ -5,6 +5,7 @@ import {
   IsUUID,
   IsNotEmpty,
   IsInt,
+  isNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -45,4 +46,8 @@ export class CreatePackageDto {
   @Min(1)
   @Type(() => Number)
   perSessionAmount!: number;
+  
+  @IsUUID()
+  @IsNotEmpty()
+  assignedDoctorId!: string;
 }

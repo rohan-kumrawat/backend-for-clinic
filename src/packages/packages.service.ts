@@ -44,6 +44,7 @@ export class PackagesService {
 
     const pkg = this.packageRepository.create({
       ...dto,
+      assignedDoctorId: dto.assignedDoctorId,
       status: PackageStatusEnum.ACTIVE,
       releasedSessions: 0,
       consumedSessions: 0,

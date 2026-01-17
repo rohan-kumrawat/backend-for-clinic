@@ -1,6 +1,7 @@
-import { Column, Entity, Index } from 'typeorm';
+import { Column, Entity, Index, JoinColumn, ManyToOne } from 'typeorm';
 import { BaseEntity } from '../common/base/base.entity';
 import { PackageStatusEnum } from '../common/enums/package-status.enum';
+import { User } from '../auth/user.entity';
 
 @Entity('packages')
 export class Package extends BaseEntity {
@@ -46,6 +47,13 @@ export class Package extends BaseEntity {
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 0 })
   carryForwardAmount!: number;
+
+  @ManyToOne(() => User, { nullable: false })
+  @JoinColumn({ name: 'assignedDoctorId' })
+  assignedDoctor!: User;
+
+  @Column({ type: 'uuid' })
+  assignedDoctorId!: string;
 
   
   @Column({ type: 'varchar', length: 500, nullable: true })
