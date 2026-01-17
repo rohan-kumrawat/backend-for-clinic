@@ -14,7 +14,7 @@ import { PackageClosedEvent } from 'src/common/events/package-closed.event';
 import { PackageStatusEnum } from '../common/enums/package-status.enum';
 import { EVENT_PACKAGE_CLOSED } from 'src/common/events/event-names';
 import { PatientsService } from 'src/patients/patients.service';
-import { error } from 'console';
+import { Doctor } from 'src/doctors/doctor.entity';
 
 export interface PackageListResponse {
   data: Package[];
@@ -28,6 +28,7 @@ export class PackagesService {
     private readonly dataSource: DataSource,
     private readonly eventEmitter: EventEmitter2,
     private readonly patientsService: PatientsService,
+    private readonly doctorRepository: Repository<Doctor>
   ) { }
 
   //✅ CREATE PACKAGE → PATIENT ACTIVE
@@ -42,9 +43,17 @@ export class PackagesService {
     await this.validateNoActivePackageForPatient(dto.patientId);
     this.validatePackageAmounts(dto);
 
+    const doctor = await this.doctorRepository.findOne({
+      where: { id: dto.assignedDoctorId, isDeleted: false },
+    });
+
+    if (!doctor) {
+      throw new NotFoundException('Assigned doctor not found');
+    }
+
     const pkg = this.packageRepository.create({
       ...dto,
-      assignedDoctorId: dto.assignedDoctorId,
+      assignedDoctor: doctor,
       status: PackageStatusEnum.ACTIVE,
       releasedSessions: 0,
       consumedSessions: 0,

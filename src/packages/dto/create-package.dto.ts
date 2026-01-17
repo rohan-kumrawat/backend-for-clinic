@@ -5,7 +5,6 @@ import {
   IsUUID,
   IsNotEmpty,
   IsInt,
-  isNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
