@@ -26,6 +26,7 @@ import { SessionService } from './session.service';
 import { ClientInfo } from './types/client-info.type';
 import { LoggerService } from '../common/logger/logger.service';
 import { EmailService } from '../common/email/email.service';
+import { SessionAuditAction } from '../common/enums/session-audit.enum';
 
 @Injectable()
 export class AuthService {
@@ -37,7 +38,7 @@ export class AuthService {
     private readonly sessionService: SessionService,
     private readonly loggerService: LoggerService,
     private readonly emailService: EmailService,
-  ) {}
+  ) { }
 
   /* ================= LOGIN ================= */
 
@@ -70,7 +71,7 @@ export class AuthService {
           const lockUntil = new Date();
           lockUntil.setMinutes(
             lockUntil.getMinutes() +
-              SECURITY_CONSTANTS.ACCOUNT_LOCK_DURATION_MINUTES,
+            SECURITY_CONSTANTS.ACCOUNT_LOCK_DURATION_MINUTES,
           );
           user.accountLockedUntil = lockUntil;
         }
@@ -88,11 +89,11 @@ export class AuthService {
       await this.userRepository.save(user);
 
       const session = await this.sessionService.createSession({
-  userId: user.id,
-  role: user.role,
-  ipAddress: clientInfo.ipAddress,
-  userAgent: clientInfo.userAgent,
-});
+        userId: user.id,
+        role: user.role,
+        ipAddress: clientInfo.ipAddress,
+        userAgent: clientInfo.userAgent,
+      });
       const payload = {
         sub: user.id,
         jti: session.jwtId,
@@ -102,7 +103,7 @@ export class AuthService {
         isActive: user.isActive,
       };
 
-      
+
       await this.auditService.log({
         actorId: user.id,
         actorRole: user.role,
@@ -176,65 +177,96 @@ export class AuthService {
   /* ================= PASSWORD RESET ================= */
 
   async requestPasswordReset(
-    dto: PasswordResetRequestDto,
-    clientInfo: ClientInfo,
-  ) {
-    const user = await this.userRepository.findOne({
-      where: { username: dto.username, isDeleted: false, isActive: true },
-    });
+  dto: PasswordResetRequestDto,
+  clientInfo: ClientInfo,
+) {
+  const user = await this.userRepository.findOne({
+    where: { email: dto.email, isDeleted: false, isActive: true },
+  });
 
-    if (!user) {
-      return { message: 'If account exists, reset token sent' };
-    }
-
-    const token = PasswordUtils.generateResetToken();
-    const hashed = PasswordUtils.hashToken(token);
-
-    const expiry = new Date();
-    expiry.setMinutes(
-      expiry.getMinutes() +
-        SECURITY_CONSTANTS.PASSWORD_RESET_TOKEN_EXPIRY_MINUTES,
-    );
-
-    user.passwordResetToken = hashed;
-    user.passwordResetTokenExpiresAt = expiry;
-    
-    await this.emailService.sendPasswordResetEmail(
-      user.email,
-      token,
-    );
-    return { message: 'Password reset link sent if account exists' };
-
+  // 🔒 Do not reveal account existence
+  if (!user) {
+    return { message: 'If account exists, reset token sent' };
   }
+
+  const token = PasswordUtils.generateResetToken();
+  const hashedToken = PasswordUtils.hashToken(token);
+
+  const expiry = new Date();
+  expiry.setMinutes(
+    expiry.getMinutes() +
+      SECURITY_CONSTANTS.PASSWORD_RESET_TOKEN_EXPIRY_MINUTES,
+  );
+
+  user.passwordResetToken = hashedToken;
+  user.passwordResetTokenExpiresAt = expiry;
+
+  await this.userRepository.save(user);
+
+  await this.emailService.sendPasswordResetEmail(
+    user.email,
+    token,
+  );
+
+  return { message: 'Password reset link sent if account exists' };
+  }
+
 
   async confirmPasswordReset(
-    dto: PasswordResetConfirmDto,
-    clientInfo: ClientInfo,
-  ) {
-    const hashed = PasswordUtils.hashToken(dto.token);
+  dto: PasswordResetConfirmDto,
+  clientInfo: ClientInfo,
+) {
+  const hashedToken = PasswordUtils.hashToken(dto.token);
 
-    const user = await this.userRepository.findOne({
-      where: {
-        passwordResetToken: hashed,
-        passwordResetTokenExpiresAt: MoreThan(new Date()),
-        isDeleted: false,
-      },
-    });
+  const user = await this.userRepository.findOne({
+    where: {
+      passwordResetToken: hashedToken,
+      passwordResetTokenExpiresAt: MoreThan(new Date()),
+      isDeleted: false,
+    },
+  });
 
-    if (!user) {
-      throw new BadRequestException('Invalid or expired token');
-    }
-
-    user.password = await PasswordUtils.hashPassword(dto.newPassword);
-    user.passwordResetToken = null;
-    user.passwordResetTokenExpiresAt = null;
-    user.failedLoginAttempts = 0;
-    user.accountLockedUntil = null;
-
-    await this.userRepository.save(user);
-
-    return { message: 'Password reset successful' };
+  if (!user) {
+    throw new BadRequestException('Invalid or expired token');
   }
+
+  // 🔐 PASSWORD STRENGTH CHECK (CRITICAL)
+  if (!PasswordUtils.validatePasswordStrength(dto.newPassword)) {
+    throw new BadRequestException('Weak password');
+  }
+
+  user.password = await PasswordUtils.hashPassword(dto.newPassword);
+  user.passwordResetToken = null;
+  user.passwordResetTokenExpiresAt = null;
+  user.failedLoginAttempts = 0;
+  user.accountLockedUntil = null;
+
+  await this.userRepository.save(user);
+
+  // 🔥 REVOKE ALL EXISTING SESSIONS
+  await this.sessionService.revokeAllUserSessions(
+    user.id,
+    SessionAuditAction.PASSWORD_RESET,
+    'Password reset',
+  );
+
+  // 🧾 AUDIT LOG
+  await this.auditService.log({
+    actorId: user.id,
+    actorRole: user.role,
+    action: 'PASSWORD_RESET_COMPLETED',
+    entity: 'USER',
+    entityId: user.id,
+    ipAddress: clientInfo.ipAddress,
+    userAgent: clientInfo.userAgent,
+    endpoint: '/auth/password-reset/confirm',
+    method: 'POST',
+    statusCode: 200,
+  });
+
+  return { message: 'Password reset successful' };
+}
+
 
   /* ================= LOGOUT ================= */
 
@@ -359,6 +391,8 @@ export class AuthService {
   }
 
   user.password = await PasswordUtils.hashPassword(dto.newPassword);
+  user.passwordResetToken = null;
+  user.passwordResetTokenExpiresAt = null;
   user.failedLoginAttempts = 0;
   user.accountLockedUntil = null;
 
@@ -379,5 +413,6 @@ export class AuthService {
 
   return { message: 'Password changed successfully' };
 }
+
 
 }

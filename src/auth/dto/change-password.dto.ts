@@ -1,5 +1,4 @@
-import { IsString, IsNotEmpty, MinLength, Matches } from 'class-validator';
-import { SECURITY_CONSTANTS } from '../../common/constants/security.constants';
+import { IsString, IsNotEmpty } from 'class-validator';
 
 export class ChangePasswordDto {
   @IsString()
