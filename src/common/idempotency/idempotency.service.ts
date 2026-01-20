@@ -9,6 +9,7 @@ import { createHash } from 'crypto';
 import stringify from 'json-stable-stringify';
 import { IdempotencyKey } from './idempotency.entity';
 import { IdempotencyStatus, HttpMethod } from './idempotency.types';
+import stableStringify from 'json-stable-stringify';
 
 @Injectable()
 export class IdempotencyService {
@@ -35,7 +36,7 @@ export class IdempotencyService {
     userId?: string,
   ): Promise<IdempotencyKey> {
     const existing = await this.repo.findOne({
-      where: { idempotencyKey: key },
+      where: { idempotencyKey: key, method, endpoint },
     });
 
     if (!existing) {
