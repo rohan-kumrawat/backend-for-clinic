@@ -49,4 +49,4 @@ export class CreatePackageDto {
   @IsUUID()
   @IsNotEmpty()
   assignedDoctorId!: string;
-}
+} 

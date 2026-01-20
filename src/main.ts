@@ -30,6 +30,7 @@ async function bootstrap() {
       'Accept',
       'Authorization',
       'x-admin-secret',
+      'Idempotency-Key'
     ],
     credentials: true,
   });

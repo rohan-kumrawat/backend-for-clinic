@@ -9,46 +9,46 @@ export class ApiHardeningMiddleware implements NestMiddleware {
   constructor(
     private readonly metrics: SecurityMetricsService,
     private readonly logger: LoggerService,
-  ) {}
+  ) { }
 
   use(req: Request, res: Response, next: NextFunction): void {
 
-    if(req.method === 'OPTIONS'){
+    if (req.method === 'OPTIONS') {
       return next();
     }
-  try {
-    const contentType = req.headers['content-type'] ?? '';
+    try {
+      const contentType = req.headers['content-type'] ?? '';
 
-    // 🔥 IMPORTANT: multipart ko bypass karo
-    if (contentType.includes('multipart/form-data')) {
-      return next();
+      // 🔥 IMPORTANT: multipart ko bypass karo
+      if (contentType.includes('multipart/form-data')) {
+        return next();
+      }
+
+      this.validateHttpMethod(req.method);
+
+      if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS' && req.method !== 'DELETE') {
+        this.validateContentType(req);
+      }
+
+      this.checkPayloadSize(req);
+      this.setSecurityHeaders(res);
+
+      next();
+    } catch (error) {
+      if (error instanceof ForbiddenException) {
+        throw error;
+      }
+      next(error);
     }
-
-    this.validateHttpMethod(req.method);
-
-    if (req.method !== 'GET' && req.method !== 'HEAD' && req.method !== 'OPTIONS') {
-      this.validateContentType(req);
-    }
-
-    this.checkPayloadSize(req);
-    this.setSecurityHeaders(res);
-
-    next();
-  } catch (error) {
-    if (error instanceof ForbiddenException) {
-      throw error;
-    }
-    next(error);
   }
-}
 
 
   private validateHttpMethod(method: string): void {
     const allowedMethods = SECURITY_CONFIG.apiHardening.allowedMethods;
-    
+
     if (!allowedMethods.includes(method.toUpperCase())) {
       this.metrics.incrementCounter('method_violations', { method });
-      
+
       this.logger.warn('Invalid HTTP method attempted', {
         module: 'ApiHardening',
         action: 'INVALID_METHOD',
@@ -69,7 +69,7 @@ export class ApiHardeningMiddleware implements NestMiddleware {
 
     if (!contentType) {
       this.metrics.incrementCounter('content_type_violations', { reason: 'MISSING' });
-      
+
       this.logger.warn('Missing Content-Type header', {
         module: 'ApiHardening',
         action: 'MISSING_CONTENT_TYPE',
@@ -83,12 +83,12 @@ export class ApiHardeningMiddleware implements NestMiddleware {
     }
 
     // Check if content type is allowed
-    const isValidType = allowedTypes.some(type => 
+    const isValidType = allowedTypes.some(type =>
       contentType.toLowerCase().includes(type.toLowerCase())
     );
 
     if (!isValidType) {
-      this.metrics.incrementCounter('content_type_violations', { 
+      this.metrics.incrementCounter('content_type_violations', {
         contentType,
         allowedTypes: allowedTypes.join(', '),
       });
@@ -109,28 +109,28 @@ export class ApiHardeningMiddleware implements NestMiddleware {
   }
 
   private checkPayloadSize(req: Request): void {
-  const contentType = req.headers['content-type'];
+    const contentType = req.headers['content-type'];
 
-  // Multer handles multipart size limits
-  if (contentType?.includes('multipart/form-data')) {
-    return;
+    // Multer handles multipart size limits
+    if (contentType?.includes('multipart/form-data')) {
+      return;
+    }
+
+    const contentLength = parseInt(req.headers['content-length'] || '0', 10);
+    const maxSize = SECURITY_CONFIG.apiHardening.maxPayloadSize;
+
+    if (contentLength > maxSize) {
+      this.metrics.incrementCounter('payload_size_violations', {
+        size: contentLength.toString(),
+        max: maxSize.toString(),
+      });
+
+      throw new ForbiddenException({
+        errorCode: 'PAYLOAD_TOO_LARGE',
+        message: `Payload exceeds ${Math.round(maxSize / 1024 / 1024)}MB limit`,
+      });
+    }
   }
-
-  const contentLength = parseInt(req.headers['content-length'] || '0', 10);
-  const maxSize = SECURITY_CONFIG.apiHardening.maxPayloadSize;
-
-  if (contentLength > maxSize) {
-    this.metrics.incrementCounter('payload_size_violations', {
-      size: contentLength.toString(),
-      max: maxSize.toString(),
-    });
-
-    throw new ForbiddenException({
-      errorCode: 'PAYLOAD_TOO_LARGE',
-      message: `Payload exceeds ${Math.round(maxSize / 1024 / 1024)}MB limit`,
-    });
-  }
-}
 
 
   private setSecurityHeaders(res: Response): void {
