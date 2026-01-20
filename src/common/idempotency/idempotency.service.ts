@@ -6,6 +6,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { createHash } from 'crypto';
+import stringify from 'json-stable-stringify';
 import { IdempotencyKey } from './idempotency.entity';
 import { IdempotencyStatus, HttpMethod } from './idempotency.types';
 
@@ -14,7 +15,7 @@ export class IdempotencyService {
   constructor(
     @InjectRepository(IdempotencyKey)
     private readonly repo: Repository<IdempotencyKey>,
-  ) {}
+  ) { }
 
   generateRequestHash(
     body: any,
@@ -22,7 +23,7 @@ export class IdempotencyService {
     query: Record<string, any> = {},
   ): string {
     return createHash('sha256')
-      .update(JSON.stringify({ body, params, query }))
+      .update(stringify({ body, params, query }) || '')
       .digest('hex');
   }
 
