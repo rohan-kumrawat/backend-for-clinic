@@ -157,6 +157,7 @@ export class PackagesService {
     try {
       const data = await this.packageRepository.find({
         where,
+        relations: { assignedDoctor: true },
         order: { createdAt: 'DESC' },
       });
 

@@ -8,6 +8,7 @@ import { Repository } from 'typeorm';
 import { createHash } from 'crypto';
 import { IdempotencyKey } from './idempotency.entity';
 import { IdempotencyStatus, HttpMethod } from './idempotency.types';
+import stableStringify from 'json-stable-stringify';
 
 @Injectable()
 export class IdempotencyService {
@@ -16,15 +17,11 @@ export class IdempotencyService {
     private readonly repo: Repository<IdempotencyKey>,
   ) {}
 
-  generateRequestHash(
-    body: any,
-    params: Record<string, any> = {},
-    query: Record<string, any> = {},
-  ): string {
-    return createHash('sha256')
-      .update(JSON.stringify({ body, params, query }))
-      .digest('hex');
-  }
+  generateRequestHash(body: any, params: any, query: any): string {
+  return createHash('sha256')
+    .update(stableStringify({ body, params, query }) || '')
+    .digest('hex');
+}
 
   async checkOrCreate(
     key: string,
@@ -34,7 +31,7 @@ export class IdempotencyService {
     userId?: string,
   ): Promise<IdempotencyKey> {
     const existing = await this.repo.findOne({
-      where: { idempotencyKey: key },
+      where: { idempotencyKey: key, method, endpoint },
     });
 
     if (!existing) {
