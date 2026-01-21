@@ -143,6 +143,62 @@ export class PackagesService {
   }
 }
 
+async getDashboardPackages(query: {
+  patientId?: string;
+  doctorId?: string;
+  status?: PackageStatusEnum;
+  financialStatus?: string;
+  page?: number;
+  limit?: number;
+}) {
+  const { page = 1, limit = 20, patientId, doctorId, status } = query;
+  const skip = (page - 1) * limit;
+
+  const qb = this.packageRepository
+    .createQueryBuilder('pkg')
+    .leftJoin('patients', 'p', 'p.id = pkg.patientId AND p.isDeleted = false')
+    .leftJoin('financial_summaries', 'fs', 'fs.packageId = pkg.id AND fs.isDeleted = false')
+    .leftJoin('doctors', 'd', 'd.id = pkg.assignedDoctorId')
+    .where('pkg.isDeleted = false');
+
+  if (patientId) qb.andWhere('pkg.patientId = :patientId', { patientId });
+  if (doctorId) qb.andWhere('pkg.assignedDoctorId = :doctorId', { doctorId });
+  if (status) qb.andWhere('pkg.status = :status', { status });
+  if (query.financialStatus) {
+    qb.andWhere('fs.status = :financialStatus', { financialStatus: query.financialStatus });
+  }
+  qb.select([
+    'pkg.id AS "packageId"',
+    'p.id AS "patientId"',
+    'p.registrationNumber AS "registrationNumber"',
+    'p.name AS "patientName"',
+    'd.id AS "doctorId"',
+    'd.name AS "doctorName"',
+    'pkg.visitType AS "visitType"',
+    'pkg.packageName AS "packageName"',
+    'pkg.status AS "packageStatus"',
+    'fs.totalSessions AS "totalSessions"',
+    'fs.consumedSessions AS "consumedSessions"',
+    '(fs.totalSessions - fs.consumedSessions) AS "remainingSessions"',
+    'fs.releasedSessions AS "releasedSessions"',
+    'CASE WHEN fs.releasedSessions < 0 THEN ABS(fs.releasedSessions) ELSE 0 END AS "overConsumedSessions"',
+    'fs."totalPackageAmount"::float AS "totalPackageAmount"',
+    'fs."totalPaidAmount"::float AS "totalPaidAmount"',
+    'fs."remainingPayableAmount"::float AS "remainingPayableAmount"',
+    'fs.status AS "financialStatus"',
+    'pkg.createdAt AS "createdAt"',
+  ]);
+
+  qb.orderBy('pkg.createdAt', 'DESC').skip(skip).take(limit);
+
+  const [data, total] = await Promise.all([
+    qb.getRawMany(),
+    qb.getCount(),
+  ]);
+
+  return { data, meta: { page, limit, total } };
+}
+
 
   async getPackages(query: ListPackagesQueryDto): Promise<PackageListResponse> {
     const where: FindOptionsWhere<Package> = {
