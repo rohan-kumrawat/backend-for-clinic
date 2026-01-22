@@ -26,5 +26,11 @@ export class DashboardPackageResponseDto {
   remainingPayableAmount!: number;
   financialStatus!: FinancialStatusEnum;
 
+  // ✅ NEW
+  perSessionAmount!: number;
+  discountAmount!: number;
+  closeRemark!: string | null;
+
   createdAt!: Date;
 }
+

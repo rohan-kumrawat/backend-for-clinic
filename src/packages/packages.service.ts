@@ -186,6 +186,9 @@ async getDashboardPackages(query: {
     'fs."totalPaidAmount"::float AS "totalPaidAmount"',
     'fs."remainingPayableAmount"::float AS "remainingPayableAmount"',
     'fs.status AS "financialStatus"',
+    'fs."perSessionAmount"::float AS "perSessionAmount"',
+    'pkg."discountAmount"::float AS "discountAmount"',
+    'pkg."closeRemark" AS "closeRemark"',
     'pkg.createdAt AS "createdAt"',
   ]);
 
