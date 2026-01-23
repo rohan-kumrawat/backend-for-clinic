@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Patient } from './patient.entity';
@@ -22,46 +22,46 @@ export class PatientsService {
     private readonly patientRepository: Repository<Patient>,
 
     private readonly patientDocumentService: PatientDocumentService,
-  ) {}
+  ) { }
 
   async createPatient(
-  dto: CreatePatientDto,
-  files?: Express.Multer.File[],
-): Promise<Patient> {
+    dto: CreatePatientDto,
+    files?: Express.Multer.File[],
+  ): Promise<Patient> {
 
-  await this.checkDuplicateRegistrationNumber(dto.registrationNumber);
+    await this.checkDuplicateRegistrationNumber(dto.registrationNumber);
 
-  const queryRunner = this.patientRepository.manager.connection.createQueryRunner();
-  await queryRunner.connect();
-  await queryRunner.startTransaction();
+    const queryRunner = this.patientRepository.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-  try {
-    const patient = queryRunner.manager.create(Patient, {
-      ...dto,
-      status: PatientStatusEnum.ACTIVE,
-      referredDoctor: dto.referredDoctor || null,
-    });
+    try {
+      const patient = queryRunner.manager.create(Patient, {
+        ...dto,
+        status: PatientStatusEnum.ACTIVE,
+        referredDoctor: dto.referredDoctor || null,
+      });
 
-    const savedPatient = await queryRunner.manager.save(patient);
+      const savedPatient = await queryRunner.manager.save(patient);
 
-    if (files && files.length > 0) {
-      await this.patientDocumentService.createDocuments(
-        queryRunner.manager,
-        savedPatient.id,
-        files,
-      );
+      if (files && files.length > 0) {
+        await this.patientDocumentService.createDocuments(
+          queryRunner.manager,
+          savedPatient.id,
+          files,
+        );
+      }
+
+      await queryRunner.commitTransaction();
+      return savedPatient;
+
+    } catch (e) {
+      await queryRunner.rollbackTransaction();
+      throw e;
+    } finally {
+      await queryRunner.release();
     }
-
-    await queryRunner.commitTransaction();
-    return savedPatient;
-
-  } catch (e) {
-    await queryRunner.rollbackTransaction();
-    throw e;
-  } finally {
-    await queryRunner.release();
   }
-}
 
 
   async getPatientById(id: string): Promise<Patient> {
@@ -229,7 +229,7 @@ export class PatientsService {
       where: { registrationNumber, isDeleted: false },
     });
     if (existingPatient) {
-      throw new Error('A patient with this registration number already exists.');
+      throw new ConflictException('A patient with this registration number already exists.');
     }
   }
 
