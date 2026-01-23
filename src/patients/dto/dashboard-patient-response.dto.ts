@@ -5,7 +5,6 @@ export class DashboardPatientResponseDto {
 
   doctorId!: string | null;
   doctorName!: string | null;
-  shift!: string | null;
 
   packageId!: string | null;
   packageStatus!: string | null;

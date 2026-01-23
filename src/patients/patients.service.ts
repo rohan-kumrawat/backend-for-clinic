@@ -123,7 +123,6 @@ export class PatientsService {
       limit = 10,
       search,
       doctorId,
-      shift,
       financialStatus,
       releasedSessionsLt,
     } = query;
@@ -142,22 +141,7 @@ export class PatientsService {
         'fs',
         'fs.packageId = pkg.id AND fs.isDeleted = false',
       )
-      .leftJoin(
-        qb2 =>
-          qb2
-            .select([
-              'DISTINCT ON (s.patientId) s.patientId AS "patientId"',
-              's.doctorId AS "doctorId"',
-              's.shift AS "shift"',
-            ])
-            .from('sessions', 's')
-            .where('s.isDeleted = false')
-            .orderBy('s.patientId', 'ASC')
-            .addOrderBy('s.sessionDate', 'DESC'),
-        'ls',
-        'ls."patientId" = p.id',
-      )
-      .leftJoin('doctors', 'd', 'd.id = ls."doctorId"')
+      .leftJoin('doctors', 'd', 'd.id = ls."assignedDoctorId"')
       .where('p.isDeleted = false');
 
     if (onlyActive) qb.andWhere('p.status = :pActive', { pActive: PatientStatusEnum.ACTIVE });
@@ -167,8 +151,7 @@ export class PatientsService {
         { search: `%${search}%` },
       );
     }
-    if (doctorId) qb.andWhere('ls."doctorId" = :doctorId', { doctorId });
-    if (shift) qb.andWhere('ls.shift = :shift', { shift });
+    if (doctorId) qb.andWhere('pkg."assignedDoctorId" = :doctorId', { doctorId });
     if (financialStatus) qb.andWhere('fs.status = :financialStatus', { financialStatus });
     if (releasedSessionsLt !== undefined) {
       qb.andWhere('pkg.releasedSessions < :releasedSessionsLt', { releasedSessionsLt });
@@ -178,9 +161,8 @@ export class PatientsService {
       'p.id AS "patientId"',
       'p.registrationNumber AS "registrationNumber"',
       'p.name AS "patientName"',
-      'ls."doctorId" AS "doctorId"',
+      'pkg."assignedDoctorId" AS "doctorId"',
       'd.name AS "doctorName"',
-      'ls.shift AS "shift"',
       'pkg.id AS "packageId"',
       'pkg.status AS "packageStatus"',
       'fs.totalSessions AS "totalSessions"',

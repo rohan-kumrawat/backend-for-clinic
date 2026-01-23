@@ -13,10 +13,6 @@ export class PatientDashboardQueryDto {
   doctorId?: string;
 
   @IsOptional()
-  @IsEnum(SessionShiftEnum)
-  shift?: SessionShiftEnum;
-
-  @IsOptional()
   @IsEnum(FinancialStatusEnum)
   financialStatus?: FinancialStatusEnum;
 
