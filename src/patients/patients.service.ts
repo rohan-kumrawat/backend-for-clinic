@@ -141,7 +141,7 @@ export class PatientsService {
         'fs',
         'fs.packageId = pkg.id AND fs.isDeleted = false',
       )
-      .leftJoin('doctors', 'd', 'd.id = ls."assignedDoctorId"')
+      .leftJoin('doctors', 'd', 'd.id = pkg."assignedDoctorId"')
       .where('p.isDeleted = false');
 
     if (onlyActive) qb.andWhere('p.status = :pActive', { pActive: PatientStatusEnum.ACTIVE });
