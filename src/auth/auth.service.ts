@@ -27,6 +27,7 @@ import { ClientInfo } from './types/client-info.type';
 import { LoggerService } from '../common/logger/logger.service';
 import { EmailService } from '../common/email/email.service';
 import { SessionAuditAction } from '../common/enums/session-audit.enum';
+import { ReceptionResetPasswordDto } from './dto/reception-reset-password.dto';
 
 @Injectable()
 export class AuthService {
@@ -174,7 +175,7 @@ export class AuthService {
     return this.userRepository.save(user);
   }
 
-  /* ================= PASSWORD RESET ================= */
+  /* ================= ADMIN PASSWORD RESET ================= */
 
   async requestPasswordReset(
   dto: PasswordResetRequestDto,
@@ -353,6 +354,8 @@ export class AuthService {
     };
   }
 
+  /* ================= ADMIN CHANGE PASSWORD ================= */
+
   async changePassword(
   userId: string,
   dto: ChangePasswordDto,
@@ -412,6 +415,64 @@ export class AuthService {
   });
 
   return { message: 'Password changed successfully' };
+}
+
+/* ================= RECEPTIONIST PASSWORD RESET ================= */
+
+async resetReceptionistPassword(
+  dto: ReceptionResetPasswordDto,
+  adminId: string,
+) {
+  const { receptionistId, newPassword } = dto;
+
+  // 🔎 Fetch user
+  const user = await this.userRepository.findOne({
+    where: {
+      id: receptionistId,
+      role: RoleEnum.RECEPTIONIST,
+      isDeleted: false,
+    },
+  });
+
+  if (!user) {
+    throw new NotFoundException('Receptionist not found');
+  }
+
+  if (!PasswordUtils.validatePasswordStrength(newPassword)) {
+    throw new BadRequestException('Weak password');
+  }
+
+  // 🔐 Hash password
+  user.password = await PasswordUtils.hashPassword(newPassword);
+
+  // 🔄 Reset security flags
+  user.failedLoginAttempts = 0;
+  user.accountLockedUntil = null;
+  user.passwordResetToken = null;
+  user.passwordResetTokenExpiresAt = null;
+
+  await this.userRepository.save(user);
+
+  // 🔥 Revoke all active sessions (VERY IMPORTANT)
+  await this.sessionService.revokeAllUserSessions(
+    user.id,
+    SessionAuditAction.PASSWORD_RESET,
+    'Admin reset receptionist password',
+  );
+
+  // 🧾 Audit log
+  await this.auditService.log({
+    actorId: adminId,
+    actorRole: RoleEnum.ADMIN,
+    action: 'ADMIN_RESET_RECEPTIONIST_PASSWORD',
+    entity: 'USER',
+    entityId: user.id,
+    endpoint: '/auth/receptionists/reset-password',
+    method: 'POST',
+    statusCode: 200,
+  });
+
+  return { message: 'Receptionist password reset successfully' };
 }
 
 

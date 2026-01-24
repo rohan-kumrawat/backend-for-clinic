@@ -25,6 +25,7 @@ import { LogoutDto } from './dto/logout.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
 import { SessionAuditAction } from 'src/common/enums/session-audit.enum';
 import { UserSession } from './user-session.entity';
+import { ReceptionResetPasswordDto } from './dto/reception-reset-password.dto';
 
 interface ClientInfo {
   ipAddress: string;
@@ -97,6 +98,20 @@ export class AuthController {
   async getReceptionists() {
     return this.authService.getUsersByRole(RoleEnum.RECEPTIONIST);
   }
+
+  @Post('receptionists/reset-password')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(RoleEnum.ADMIN)
+  @HttpCode(200)
+  async resetReceptionistPassword(
+    @Body() dto: ReceptionResetPasswordDto,
+    @Request() req: any,
+  ) {
+    const adminId = req.user.userId;
+    return this.authService.resetReceptionistPassword(dto, adminId);
+  }
+
+
 
   @Patch('receptionists/:id/activate')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
