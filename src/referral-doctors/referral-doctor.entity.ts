@@ -14,6 +14,6 @@ export class ReferralDoctor extends BaseEntity {
   @Column({ type: 'varchar', length: 15, nullable: true })
   phone!: string | null;
 
-  @Column({ type: 'varchar', length: 150, nullable: true })
+  @Column({ name: 'clinic_name', type: 'varchar', length: 150, nullable: true })
   clinicName!: string | null;
 }
