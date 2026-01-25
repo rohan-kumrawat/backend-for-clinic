@@ -22,8 +22,8 @@ import { TypeOrmModuleOptions } from '@nestjs/typeorm';
           database: !isProd ? configService.get('database.name') : undefined,
 
           autoLoadEntities: true,
-          // synchronize: configService.get<boolean>('database.sync') ?? false,
-          synchronize:true,  
+          synchronize: configService.get<boolean>('database.sync') ?? false,
+          // synchronize:true,  
           logging: !isProd,
           ssl: isProd ? { rejectUnauthorized: false } : false,
         };
