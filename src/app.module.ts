@@ -40,6 +40,7 @@ import { MaintenanceModule } from './common/maintenance/maintenance.module';
 import { ShutdownModule } from './common/shutdown/shutdown.module';
 import { IdempotencyModule } from './common/idempotency/idempotency.module';
 import { AdminSetupModule } from './admin-setup/admin-setup.module';
+import { ReferralDoctorsModule } from './referral-doctors/referral-doctors.module';
 
 @Module({
   imports: [
@@ -60,6 +61,7 @@ import { AdminSetupModule } from './admin-setup/admin-setup.module';
     PatientsModule,
     DoctorsModule,
     PackagesModule,
+    ReferralDoctorsModule,
     PaymentsModule,
     SessionsModule,
     ReportsModule,
@@ -73,11 +75,6 @@ import { AdminSetupModule } from './admin-setup/admin-setup.module';
   providers: [
     GracefulShutdownService,
 
-    // ✅ Guards
-    // {
-    //   provide: APP_GUARD,
-    //   useClass: RolesGuard,
-    // },
     {
       provide: APP_INTERCEPTOR,
       useClass: AuditInterceptor,
