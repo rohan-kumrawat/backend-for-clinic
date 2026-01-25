@@ -18,16 +18,19 @@ export class ReferralDoctorsService {
   ) {}
 
   async create(dto: CreateReferralDoctorDto): Promise<ReferralDoctor> {
-    const doctor = this.referralDoctorRepository.create({
-      ...dto,
-    });
+  const doctor = this.referralDoctorRepository.create(dto);
 
-    try {
-      return await this.referralDoctorRepository.save(doctor);
-    } catch (e) {
-      throw new InternalServerErrorException('Failed to create referral doctor');
-    }
+  try {
+    return await this.referralDoctorRepository.save(doctor);
+  } catch (e) {
+    console.error('CREATE REFERRAL DOCTOR ERROR 👉', e);
+
+    // 🔴 MUST THROW
+    throw new InternalServerErrorException(
+      'Failed to create referral doctor',
+    );
   }
+}
 
   async list(query: ListReferralDoctorsQueryDto) {
     const { page, limit, search } = query;
