@@ -165,15 +165,17 @@ export class PatientsService {
       'd.name AS "doctorName"',
       'pkg.id AS "packageId"',
       'pkg.status AS "packageStatus"',
-      'fs.totalSessions AS "totalSessions"',
-      'fs.consumedSessions AS "consumedSessions"',
-      '(fs.totalSessions - fs.consumedSessions) AS "remainingSessions"',
-      'fs.releasedSessions AS "releasedSessions"',
-      'CASE WHEN fs.releasedSessions < 0 THEN ABS(fs.releasedSessions) ELSE 0 END AS "overConsumedSessions"',
-      'fs."totalPackageAmount"::float AS "totalPackageAmount"',
-      'fs."totalPaidAmount"::float AS "totalPaidAmount"',
-      'fs."remainingPayableAmount"::float AS "remainingPayableAmount"',
-      'fs.status AS "financialStatus"',
+
+      'COALESCE(fs.totalSessions, pkg.totalSessions) AS "totalSessions"',
+      'COALESCE(fs.consumedSessions, 0) AS "consumedSessions"',
+      '(COALESCE(fs.totalSessions, pkg.totalSessions) - COALESCE(fs.consumedSessions, 0)) AS "remainingSessions"',
+      'COALESCE(fs.releasedSessions, pkg.releasedSessions) AS "releasedSessions"',
+      'CASE WHEN COALESCE(fs.releasedSessions, 0) < 0 THEN ABS(fs.releasedSessions) ELSE 0 END AS "overConsumedSessions"',
+
+      'COALESCE(fs."totalPackageAmount", pkg.totalAmount)::float AS "totalPackageAmount"',
+      'COALESCE(fs."totalPaidAmount", 0)::float AS "totalPaidAmount"',
+      '(COALESCE(fs."totalPackageAmount", pkg.totalAmount) - COALESCE(fs."totalPaidAmount", 0))::float AS "remainingPayableAmount"',
+      'COALESCE(fs.status, \'DUE\') AS "financialStatus"',
     ]);
 
     qb.orderBy('p.createdAt', 'DESC').skip(skip).take(limit);

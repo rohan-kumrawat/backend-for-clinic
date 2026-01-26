@@ -15,6 +15,7 @@ import { PackageStatusEnum } from '../common/enums/package-status.enum';
 import { EVENT_PACKAGE_CLOSED } from 'src/common/events/event-names';
 import { PatientsService } from 'src/patients/patients.service';
 import { Doctor } from 'src/doctors/doctor.entity';
+import { FinancialSummaryService } from 'src/financial-summary/financial-summary.service';
 
 export interface PackageListResponse {
   data: Package[];
@@ -32,6 +33,8 @@ export class PackagesService {
     private readonly dataSource: DataSource,
     private readonly eventEmitter: EventEmitter2,
     private readonly patientsService: PatientsService,
+
+    private readonly financialSummaryService: FinancialSummaryService,
   ) { }
 
   //✅ CREATE PACKAGE → PATIENT ACTIVE
@@ -67,6 +70,7 @@ export class PackagesService {
     try {
       const savedPackage = await this.packageRepository.save(pkg);
 
+      await this.financialSummaryService.recomputeForPackage(savedPackage.id);
       // ✅ patient ACTIVE
       await this.patientsService.markActive(dto.patientId);
 
@@ -177,16 +181,20 @@ async getDashboardPackages(query: {
     'pkg.visitType AS "visitType"',
     'pkg.packageName AS "packageName"',
     'pkg.status AS "packageStatus"',
-    'fs.totalSessions AS "totalSessions"',
-    'fs.consumedSessions AS "consumedSessions"',
-    '(fs.totalSessions - fs.consumedSessions) AS "remainingSessions"',
-    'fs.releasedSessions AS "releasedSessions"',
-    'CASE WHEN fs.releasedSessions < 0 THEN ABS(fs.releasedSessions) ELSE 0 END AS "overConsumedSessions"',
-    'fs."totalPackageAmount"::float AS "totalPackageAmount"',
-    'fs."totalPaidAmount"::float AS "totalPaidAmount"',
-    'fs."remainingPayableAmount"::float AS "remainingPayableAmount"',
-    'fs.status AS "financialStatus"',
-    'fs."perSessionAmount"::float AS "perSessionAmount"',
+
+     'COALESCE(fs.totalSessions, pkg.totalSessions) AS "totalSessions"',
+    'COALESCE(fs.consumedSessions, 0) AS "consumedSessions"',
+    '(COALESCE(fs.totalSessions, pkg.totalSessions) - COALESCE(fs.consumedSessions, 0)) AS "remainingSessions"',
+    'COALESCE(fs.releasedSessions, pkg.releasedSessions) AS "releasedSessions"',
+    'CASE WHEN COALESCE(fs.releasedSessions, 0) < 0 THEN ABS(fs.releasedSessions) ELSE 0 END AS "overConsumedSessions"',
+
+    'COALESCE(fs."totalPackageAmount", pkg.totalAmount)::float AS "totalPackageAmount"',
+    'COALESCE(fs."totalPaidAmount", 0)::float AS "totalPaidAmount"',
+    '(COALESCE(fs."totalPackageAmount", pkg.totalAmount) - COALESCE(fs."totalPaidAmount", 0))::float AS "remainingPayableAmount"',
+    'COALESCE(fs.status, \'DUE\') AS "financialStatus"',
+    'COALESCE(fs."perSessionAmount", pkg.perSessionAmount)::float AS "perSessionAmount"',
+
+
     'pkg."discountAmount"::float AS "discountAmount"',
     'pkg."closeRemark" AS "closeRemark"',
     'pkg.createdAt AS "createdAt"',
