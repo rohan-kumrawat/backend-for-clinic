@@ -38,7 +38,10 @@ export class PatientsService {
     try {
       const patient = queryRunner.manager.create(Patient, {
         ...dto,
-        status: PatientStatusEnum.ACTIVE,
+        status: dto.isOldPatient
+          ? PatientStatusEnum.INACTIVE
+          : PatientStatusEnum.ACTIVE,
+        isOldPatient: dto.isOldPatient ?? false,  
         referredDoctor: dto.referredDoctor || null,
       });
 
