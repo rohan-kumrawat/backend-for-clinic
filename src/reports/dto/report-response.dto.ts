@@ -26,3 +26,10 @@ export interface SessionLoadResponse {
   freeSessions: number;
   paidSessions: number;
 }
+
+export interface ReferralDoctorReportResponse {
+  referralDoctorId: string;
+  referralDoctorName: string;
+  clinicName: string | null;
+  totalPatientsReferred: number;
+}

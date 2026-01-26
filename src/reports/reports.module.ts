@@ -5,10 +5,11 @@ import { ReportsController } from './reports.controller';
 import { Session } from '../sessions/session.entity';
 import { Package } from '../packages/package.entity';
 import { Payment } from '../payments/payment.entity';
+import { Patient } from '../patients/patient.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Session, Package, Payment]),
+    TypeOrmModule.forFeature([Session, Package, Payment, Patient]),
   ],
   controllers: [ReportsController],
   providers: [ReportsService],

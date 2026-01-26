@@ -9,10 +9,12 @@ import {
   PatientPackageSummaryResponse,
   RevenueSummaryResponse,
   SessionLoadResponse,
+  ReferralDoctorReportResponse
 } from './dto/report-response.dto';
 import { DoctorPerformanceFilterDto } from './dto/doctor-performance-filter.dto';
 import { RevenueSummaryFilterDto } from './dto/revenue-summary-filter.dto';
 import { SessionLoadFilterDto } from './dto/session-load-filter.dto';
+import { Patient } from '../patients/patient.entity';
 
 @Injectable()
 export class ReportsService {
@@ -23,6 +25,8 @@ export class ReportsService {
     private readonly packageRepository: Repository<Package>,
     @InjectRepository(Payment)
     private readonly paymentRepository: Repository<Payment>,
+    @InjectRepository(Patient)
+    private readonly patientRepository: Repository<Patient>,
   ) {}
 
   async getDoctorPerformance(
@@ -209,4 +213,41 @@ export class ReportsService {
       throw new InternalServerErrorException('Failed to generate session load report');
     }
   }
+
+  async getReferralDoctorReport(): Promise<ReferralDoctorReportResponse[]> {
+  try {
+    const qb = this.patientRepository
+      .createQueryBuilder('p')
+      .select('rd.id', 'referralDoctorId')
+      .addSelect('rd.name', 'referralDoctorName')
+      .addSelect('rd.clinic_name', 'clinicName')
+      .addSelect('COUNT(p.id)', 'totalPatientsReferred')
+      .leftJoin(
+        'referral_doctors',
+        'rd',
+        'rd.id = p."referredDoctor"',
+      )
+      .where('p.isDeleted = false')
+      .andWhere('p."referredDoctor" IS NOT NULL')
+      .groupBy('rd.id')
+      .addGroupBy('rd.name')
+      .addGroupBy('rd.clinic_name')
+      .orderBy('COUNT(p.id)', 'DESC');
+
+    const rawResults = await qb.getRawMany();
+
+    return rawResults.map(row => ({
+      referralDoctorId: row.referralDoctorId,
+      referralDoctorName: row.referralDoctorName,
+      clinicName: row.clinicName,
+      totalPatientsReferred: Number(row.totalPatientsReferred),
+    }));
+  } catch (error) {
+    throw new InternalServerErrorException(
+      'Failed to generate referral doctor report',
+    );
+  }
+}
+
+  
 }

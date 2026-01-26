@@ -43,6 +43,14 @@ export class ReportsController {
   @Get('patient-package-summary')
   async getPatientPackageSummary() {
   return this.reportsService.getPatientPackageSummary();
-}
+  }
+
+  @Get('referral-doctors')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(RoleEnum.ADMIN)
+  async referralDoctorReport() {
+    return this.reportsService.getReferralDoctorReport();
+  }
+
 
 }
