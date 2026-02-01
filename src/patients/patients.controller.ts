@@ -61,6 +61,25 @@ export class PatientsController {
     }));
   }
 
+  @Post(':patientId/documents')
+  @Roles(RoleEnum.ADMIN, RoleEnum.RECEPTIONIST)
+  @UseInterceptors(FilesInterceptor('files', 10))
+  async uploadPatientDocuments(
+    @Param('patientId', ParseUUIDPipe) patientId: string,
+    @UploadedFiles() files?: Express.Multer.File[],
+  ) {
+    if (files?.length) {
+      for (const file of files) {
+        this.cloudinaryService.validateFile(file);
+      }
+    } else {
+      throw new BadRequestException('No files provided');
+    }
+
+    await this.patientsService.uploadDocuments(patientId, files);
+    return { success: true };
+  }
+
   @Delete(':patientId/documents/:documentId')
   @Roles(RoleEnum.ADMIN, RoleEnum.RECEPTIONIST)
   async deletePatientDocument(

@@ -285,4 +285,31 @@ export class PatientsService {
       await queryRunner.release();
     }
   }
+
+  async uploadDocuments(
+    id: string,
+    files: Express.Multer.File[],
+  ): Promise<void> {
+    const patient = await this.getPatientById(id);
+    const queryRunner = this.patientRepository.manager.connection.createQueryRunner();
+
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      if (files && files.length > 0) {
+        await this.patientDocumentService.createDocuments(
+          queryRunner.manager,
+          id,
+          files,
+        );
+      }
+      await queryRunner.commitTransaction();
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
 }
