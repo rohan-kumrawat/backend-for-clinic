@@ -27,7 +27,7 @@ export class ReportsService {
     private readonly paymentRepository: Repository<Payment>,
     @InjectRepository(Patient)
     private readonly patientRepository: Repository<Patient>,
-  ) {}
+  ) { }
 
   async getDoctorPerformance(
     filter: DoctorPerformanceFilterDto,
@@ -35,6 +35,7 @@ export class ReportsService {
     try {
       const queryBuilder = this.sessionRepository
         .createQueryBuilder('session')
+        .innerJoin(Patient, 'patient', 'patient.id = session.patientId')
         .select('session.doctorId', 'doctorId')
         .addSelect('COUNT(DISTINCT session.patientId)', 'totalPatients')
         .addSelect('COUNT(*)', 'totalSessions')
@@ -46,7 +47,8 @@ export class ReportsService {
           'SUM(CASE WHEN session.isFreeSession = false THEN 1 ELSE 0 END)',
           'paidSessions',
         )
-        .where('session.isDeleted = false');
+        .where('session.isDeleted = false')
+        .andWhere('patient.isDeleted = false');
 
       if (filter.doctorId) {
         queryBuilder.andWhere('session.doctorId = :doctorId', {
@@ -67,8 +69,8 @@ export class ReportsService {
       }
 
       queryBuilder.groupBy('session.doctorId')
-      .orderBy('COUNT(*)', 'DESC')
-      .addOrderBy('session.doctorId', 'ASC');
+        .orderBy('COUNT(*)', 'DESC')
+        .addOrderBy('session.doctorId', 'ASC');
 
       const rawResults = await queryBuilder.getRawMany();
 
@@ -88,29 +90,31 @@ export class ReportsService {
 
   async getPatientPackageSummary(): Promise<PatientPackageSummaryResponse[]> {
     try {
-          const queryBuilder = this.packageRepository
-      .createQueryBuilder('package')
-      .select('package.patientId', 'patient_id')
-      .addSelect('COUNT(*)', 'total_packages')
-      .addSelect(
-        "SUM(CASE WHEN package.status = 'ACTIVE' THEN 1 ELSE 0 END)",
-        'active_packages',
-      )
-      .addSelect(
-        "SUM(CASE WHEN package.status = 'COMPLETED' THEN 1 ELSE 0 END)",
-        'completed_packages',
-      )
-      .addSelect(
-        "SUM(CASE WHEN package.status = 'CLOSED_EARLY' THEN 1 ELSE 0 END)",
-        'closed_early_packages',
-      )
-      .addSelect(
-        "SUM(CASE WHEN package.status = 'CANCELLED' THEN 1 ELSE 0 END)",
-        'cancelled_packages',
-      )
-      .where('package.isDeleted = false')
-      .groupBy('package.patientId')
-      .orderBy('total_packages', 'DESC');
+      const queryBuilder = this.packageRepository
+        .createQueryBuilder('package')
+        .innerJoin(Patient, 'patient', 'patient.id = package.patientId')
+        .select('package.patientId', 'patient_id')
+        .addSelect('COUNT(*)', 'total_packages')
+        .addSelect(
+          "SUM(CASE WHEN package.status = 'ACTIVE' THEN 1 ELSE 0 END)",
+          'active_packages',
+        )
+        .addSelect(
+          "SUM(CASE WHEN package.status = 'COMPLETED' THEN 1 ELSE 0 END)",
+          'completed_packages',
+        )
+        .addSelect(
+          "SUM(CASE WHEN package.status = 'CLOSED_EARLY' THEN 1 ELSE 0 END)",
+          'closed_early_packages',
+        )
+        .addSelect(
+          "SUM(CASE WHEN package.status = 'CANCELLED' THEN 1 ELSE 0 END)",
+          'cancelled_packages',
+        )
+        .where('package.isDeleted = false')
+        .andWhere('patient.isDeleted = false')
+        .groupBy('package.patientId')
+        .orderBy('total_packages', 'DESC');
 
       const rawResults = await queryBuilder.getRawMany();
 
@@ -215,39 +219,39 @@ export class ReportsService {
   }
 
   async getReferralDoctorReport(): Promise<ReferralDoctorReportResponse[]> {
-  try {
-    const qb = this.patientRepository
-      .createQueryBuilder('p')
-      .select('rd.id', 'referralDoctorId')
-      .addSelect('rd.name', 'referralDoctorName')
-      .addSelect('rd.clinic_name', 'clinicName')
-      .addSelect('COUNT(p.id)', 'totalPatientsReferred')
-      .leftJoin(
-        'referral_doctors',
-        'rd',
-        'rd.id = p."referredDoctor"',
-      )
-      .where('p.isDeleted = false')
-      .andWhere('p."referredDoctor" IS NOT NULL')
-      .groupBy('rd.id')
-      .addGroupBy('rd.name')
-      .addGroupBy('rd.clinic_name')
-      .orderBy('COUNT(p.id)', 'DESC');
+    try {
+      const qb = this.patientRepository
+        .createQueryBuilder('p')
+        .select('rd.id', 'referralDoctorId')
+        .addSelect('rd.name', 'referralDoctorName')
+        .addSelect('rd.clinic_name', 'clinicName')
+        .addSelect('COUNT(p.id)', 'totalPatientsReferred')
+        .leftJoin(
+          'referral_doctors',
+          'rd',
+          'rd.id = p."referredDoctor"',
+        )
+        .where('p.isDeleted = false')
+        .andWhere('p."referredDoctor" IS NOT NULL')
+        .groupBy('rd.id')
+        .addGroupBy('rd.name')
+        .addGroupBy('rd.clinic_name')
+        .orderBy('COUNT(p.id)', 'DESC');
 
-    const rawResults = await qb.getRawMany();
+      const rawResults = await qb.getRawMany();
 
-    return rawResults.map(row => ({
-      referralDoctorId: row.referralDoctorId,
-      referralDoctorName: row.referralDoctorName,
-      clinicName: row.clinicName,
-      totalPatientsReferred: Number(row.totalPatientsReferred),
-    }));
-  } catch (error) {
-    throw new InternalServerErrorException(
-      'Failed to generate referral doctor report',
-    );
+      return rawResults.map(row => ({
+        referralDoctorId: row.referralDoctorId,
+        referralDoctorName: row.referralDoctorName,
+        clinicName: row.clinicName,
+        totalPatientsReferred: Number(row.totalPatientsReferred),
+      }));
+    } catch (error) {
+      throw new InternalServerErrorException(
+        'Failed to generate referral doctor report',
+      );
+    }
   }
-}
 
-  
+
 }
