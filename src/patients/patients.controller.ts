@@ -76,8 +76,19 @@ export class PatientsController {
       throw new BadRequestException('No files provided');
     }
 
-    await this.patientsService.uploadDocuments(patientId, files);
-    return { success: true };
+    const uploadedDocs = await this.patientsService.uploadDocuments(patientId, files);
+    return {
+      success: true,
+      data: uploadedDocs.map((doc) => ({
+        id: doc.id,
+        fileName: doc.fileName,
+        fileType: doc.fileType,
+        fileUrl: doc.fileUrl,
+        fileSize: doc.fileSize,
+        documentType: doc.documentType,
+        uploadedAt: doc.uploadedAt,
+      })),
+    };
   }
 
   @Delete(':patientId/documents/:documentId')

@@ -289,7 +289,7 @@ export class PatientsService {
   async uploadDocuments(
     id: string,
     files: Express.Multer.File[],
-  ): Promise<void> {
+  ): Promise<any[]> {
     const patient = await this.getPatientById(id);
     const queryRunner = this.patientRepository.manager.connection.createQueryRunner();
 
@@ -297,14 +297,16 @@ export class PatientsService {
     await queryRunner.startTransaction();
 
     try {
+      let createdDocs: any[] = [];
       if (files && files.length > 0) {
-        await this.patientDocumentService.createDocuments(
+        createdDocs = await this.patientDocumentService.createDocuments(
           queryRunner.manager,
           id,
           files,
         );
       }
       await queryRunner.commitTransaction();
+      return createdDocs;
     } catch (err) {
       await queryRunner.rollbackTransaction();
       throw err;
