@@ -37,7 +37,7 @@ export class AuthController {
   constructor(
     private readonly authService: AuthService,
     private readonly sessionService: SessionService,
-  ) {}
+  ) { }
 
   private extractClientInfo(req: any): ClientInfo {
     return {
@@ -110,7 +110,16 @@ export class AuthController {
     const adminId = req.user.userId;
     return this.authService.resetReceptionistPassword(dto, adminId);
   }
-
+  @Delete('receptionists/:id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @Roles(RoleEnum.ADMIN)
+  async softDeleteReceptionist(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Request() req: any,
+  ) {
+    const adminId = req.user.userId;
+    return this.authService.softDeleteReceptionist(id, adminId);
+  }
 
 
   @Patch('receptionists/:id/activate')
@@ -149,9 +158,9 @@ export class AuthController {
     const clientInfo = this.extractClientInfo(req);
     const jwtId = req.user.jwtId;
     const userId = req.user.userId;
-    
+
     await this.authService.logout(jwtId, userId, clientInfo);
-    
+
     return { message: 'Logged out successfully' };
   }
 
@@ -172,7 +181,7 @@ export class AuthController {
     @Param('id', ParseUUIDPipe) userId: string,
   ) {
     const sessions = await this.sessionService.getAllUserSessions(userId);
-    
+
     // Sanitize response
     return sessions.map((session: UserSession) => ({
       id: session.id,
@@ -198,14 +207,14 @@ export class AuthController {
   ) {
     const clientInfo = this.extractClientInfo(req);
     const adminId = req.user.userId;
-    
+
     await this.sessionService.revokeSession(
       sessionId,
       SessionAuditAction.SESSION_REVOKED_ADMIN,
       'Admin forced logout',
       adminId,
     );
-    
+
     return { message: 'Session revoked successfully' };
   }
 
@@ -218,14 +227,14 @@ export class AuthController {
   ) {
     const clientInfo = this.extractClientInfo(req);
     const adminId = req.user.userId;
-    
+
     const sessionsRevoked = await this.sessionService.revokeAllUserSessions(
       userId,
       adminId,
       'Admin forced logout all',
     );
-    
-    return { 
+
+    return {
       message: `Revoked ${sessionsRevoked} active sessions`,
       sessionsRevoked,
     };

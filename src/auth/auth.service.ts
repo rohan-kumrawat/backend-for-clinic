@@ -178,95 +178,95 @@ export class AuthService {
   /* ================= ADMIN PASSWORD RESET ================= */
 
   async requestPasswordReset(
-  dto: PasswordResetRequestDto,
-  clientInfo: ClientInfo,
-) {
-  const user = await this.userRepository.findOne({
-    where: { email: dto.email, isDeleted: false, isActive: true },
-  });
+    dto: PasswordResetRequestDto,
+    clientInfo: ClientInfo,
+  ) {
+    const user = await this.userRepository.findOne({
+      where: { email: dto.email, isDeleted: false, isActive: true },
+    });
 
-  // 🔒 Do not reveal account existence
-  if (!user) {
-    return { message: 'If account exists, reset token sent' };
-  }
+    // 🔒 Do not reveal account existence
+    if (!user) {
+      return { message: 'If account exists, reset token sent' };
+    }
 
-  const token = PasswordUtils.generateResetToken();
-  const hashedToken = PasswordUtils.hashToken(token);
+    const token = PasswordUtils.generateResetToken();
+    const hashedToken = PasswordUtils.hashToken(token);
 
-  const expiry = new Date();
-  expiry.setMinutes(
-    expiry.getMinutes() +
+    const expiry = new Date();
+    expiry.setMinutes(
+      expiry.getMinutes() +
       SECURITY_CONSTANTS.PASSWORD_RESET_TOKEN_EXPIRY_MINUTES,
-  );
+    );
 
-  user.passwordResetToken = hashedToken;
-  user.passwordResetTokenExpiresAt = expiry;
+    user.passwordResetToken = hashedToken;
+    user.passwordResetTokenExpiresAt = expiry;
 
-  await this.userRepository.save(user);
+    await this.userRepository.save(user);
 
-  await this.emailService.sendPasswordResetEmail(
-    user.email,
-    token,
-  );
+    await this.emailService.sendPasswordResetEmail(
+      user.email,
+      token,
+    );
 
-  return { message: 'Password reset link sent if account exists' };
+    return { message: 'Password reset link sent if account exists' };
   }
 
 
   async confirmPasswordReset(
-  dto: PasswordResetConfirmDto,
-  clientInfo: ClientInfo,
-) {
-  const hashedToken = PasswordUtils.hashToken(dto.token);
+    dto: PasswordResetConfirmDto,
+    clientInfo: ClientInfo,
+  ) {
+    const hashedToken = PasswordUtils.hashToken(dto.token);
 
-  const user = await this.userRepository.findOne({
-    where: {
-      passwordResetToken: hashedToken,
-      passwordResetTokenExpiresAt: MoreThan(new Date()),
-      isDeleted: false,
-    },
-  });
+    const user = await this.userRepository.findOne({
+      where: {
+        passwordResetToken: hashedToken,
+        passwordResetTokenExpiresAt: MoreThan(new Date()),
+        isDeleted: false,
+      },
+    });
 
-  if (!user) {
-    throw new BadRequestException('Invalid or expired token');
+    if (!user) {
+      throw new BadRequestException('Invalid or expired token');
+    }
+
+    // 🔐 PASSWORD STRENGTH CHECK (CRITICAL)
+    if (!PasswordUtils.validatePasswordStrength(dto.newPassword)) {
+      throw new BadRequestException('Weak password');
+    }
+
+    user.password = await PasswordUtils.hashPassword(dto.newPassword);
+    user.passwordResetToken = null;
+    user.passwordResetTokenExpiresAt = null;
+    user.failedLoginAttempts = 0;
+    user.accountLockedUntil = null;
+
+    await this.userRepository.save(user);
+
+    // 🔥 REVOKE ALL EXISTING SESSIONS
+    await this.sessionService.revokeAllUserSessions(
+      user.id,
+      SessionAuditAction.PASSWORD_RESET,
+      'Password reset',
+    );
+
+    // 🧾 AUDIT LOG
+    await this.auditService.log({
+      actorId: user.id,
+      actorRole: user.role,
+      action: 'PASSWORD_RESET_COMPLETED',
+      entity: 'USER',
+      entityId: user.id,
+      ipAddress: clientInfo.ipAddress,
+      userAgent: clientInfo.userAgent,
+      endpoint: '/auth/password-reset/confirm',
+      method: 'POST',
+      statusCode: 200,
+    });
+
+    return { message: 'Password reset successful' };
   }
-
-  // 🔐 PASSWORD STRENGTH CHECK (CRITICAL)
-  if (!PasswordUtils.validatePasswordStrength(dto.newPassword)) {
-    throw new BadRequestException('Weak password');
-  }
-
-  user.password = await PasswordUtils.hashPassword(dto.newPassword);
-  user.passwordResetToken = null;
-  user.passwordResetTokenExpiresAt = null;
-  user.failedLoginAttempts = 0;
-  user.accountLockedUntil = null;
-
-  await this.userRepository.save(user);
-
-  // 🔥 REVOKE ALL EXISTING SESSIONS
-  await this.sessionService.revokeAllUserSessions(
-    user.id,
-    SessionAuditAction.PASSWORD_RESET,
-    'Password reset',
-  );
-
-  // 🧾 AUDIT LOG
-  await this.auditService.log({
-    actorId: user.id,
-    actorRole: user.role,
-    action: 'PASSWORD_RESET_COMPLETED',
-    entity: 'USER',
-    entityId: user.id,
-    ipAddress: clientInfo.ipAddress,
-    userAgent: clientInfo.userAgent,
-    endpoint: '/auth/password-reset/confirm',
-    method: 'POST',
-    statusCode: 200,
-  });
-
-  return { message: 'Password reset successful' };
-}
 
 
   /* ================= LOGOUT ================= */
@@ -357,123 +357,163 @@ export class AuthService {
   /* ================= ADMIN CHANGE PASSWORD ================= */
 
   async changePassword(
-  userId: string,
-  dto: ChangePasswordDto,
-  clientInfo: ClientInfo,
-) {
-  const user = await this.userRepository.findOne({
-    where: { id: userId, isDeleted: false, isActive: true },
-  });
+    userId: string,
+    dto: ChangePasswordDto,
+    clientInfo: ClientInfo,
+  ) {
+    const user = await this.userRepository.findOne({
+      where: { id: userId, isDeleted: false, isActive: true },
+    });
 
-  if (!user) {
-    throw new NotFoundException('User not found');
-  }
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
 
-  const isValid = await PasswordUtils.comparePassword(
-    dto.currentPassword,
-    user.password,
-  );
-
-  if (!isValid) {
-    throw new UnauthorizedException('Current password is incorrect');
-  }
-
-  if (!PasswordUtils.validatePasswordStrength(dto.newPassword)) {
-    throw new BadRequestException('Weak password');
-  }
-
-  const samePassword = await PasswordUtils.comparePassword(
-    dto.newPassword,
-    user.password,
-  );
-
-  if (samePassword) {
-    throw new ConflictException(
-      'New password must be different from old password',
+    const isValid = await PasswordUtils.comparePassword(
+      dto.currentPassword,
+      user.password,
     );
+
+    if (!isValid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    if (!PasswordUtils.validatePasswordStrength(dto.newPassword)) {
+      throw new BadRequestException('Weak password');
+    }
+
+    const samePassword = await PasswordUtils.comparePassword(
+      dto.newPassword,
+      user.password,
+    );
+
+    if (samePassword) {
+      throw new ConflictException(
+        'New password must be different from old password',
+      );
+    }
+
+    user.password = await PasswordUtils.hashPassword(dto.newPassword);
+    user.passwordResetToken = null;
+    user.passwordResetTokenExpiresAt = null;
+    user.failedLoginAttempts = 0;
+    user.accountLockedUntil = null;
+
+    await this.userRepository.save(user);
+
+    await this.auditService.log({
+      actorId: user.id,
+      actorRole: user.role,
+      action: 'PASSWORD_CHANGE',
+      entity: 'USER',
+      entityId: user.id,
+      ipAddress: clientInfo.ipAddress,
+      userAgent: clientInfo.userAgent,
+      endpoint: '/auth/change-password',
+      method: 'POST',
+      statusCode: 200,
+    });
+
+    return { message: 'Password changed successfully' };
   }
 
-  user.password = await PasswordUtils.hashPassword(dto.newPassword);
-  user.passwordResetToken = null;
-  user.passwordResetTokenExpiresAt = null;
-  user.failedLoginAttempts = 0;
-  user.accountLockedUntil = null;
+  /* ================= RECEPTIONIST PASSWORD RESET ================= */
 
-  await this.userRepository.save(user);
+  async resetReceptionistPassword(
+    dto: ReceptionResetPasswordDto,
+    adminId: string,
+  ) {
+    const { receptionistId, newPassword } = dto;
 
-  await this.auditService.log({
-    actorId: user.id,
-    actorRole: user.role,
-    action: 'PASSWORD_CHANGE',
-    entity: 'USER',
-    entityId: user.id,
-    ipAddress: clientInfo.ipAddress,
-    userAgent: clientInfo.userAgent,
-    endpoint: '/auth/change-password',
-    method: 'POST',
-    statusCode: 200,
-  });
+    // 🔎 Fetch user
+    const user = await this.userRepository.findOne({
+      where: {
+        id: receptionistId,
+        role: RoleEnum.RECEPTIONIST,
+        isDeleted: false,
+      },
+    });
 
-  return { message: 'Password changed successfully' };
-}
+    if (!user) {
+      throw new NotFoundException('Receptionist not found');
+    }
 
-/* ================= RECEPTIONIST PASSWORD RESET ================= */
+    if (!PasswordUtils.validatePasswordStrength(newPassword)) {
+      throw new BadRequestException('Weak password');
+    }
 
-async resetReceptionistPassword(
-  dto: ReceptionResetPasswordDto,
-  adminId: string,
-) {
-  const { receptionistId, newPassword } = dto;
+    // 🔐 Hash password
+    user.password = await PasswordUtils.hashPassword(newPassword);
 
-  // 🔎 Fetch user
-  const user = await this.userRepository.findOne({
-    where: {
-      id: receptionistId,
-      role: RoleEnum.RECEPTIONIST,
-      isDeleted: false,
-    },
-  });
+    // 🔄 Reset security flags
+    user.failedLoginAttempts = 0;
+    user.accountLockedUntil = null;
+    user.passwordResetToken = null;
+    user.passwordResetTokenExpiresAt = null;
 
-  if (!user) {
-    throw new NotFoundException('Receptionist not found');
+    await this.userRepository.save(user);
+
+    // 🔥 Revoke all active sessions (VERY IMPORTANT)
+    await this.sessionService.revokeAllUserSessions(
+      user.id,
+      SessionAuditAction.PASSWORD_RESET,
+      'Admin reset receptionist password',
+    );
+
+    // 🧾 Audit log
+    await this.auditService.log({
+      actorId: adminId,
+      actorRole: RoleEnum.ADMIN,
+      action: 'ADMIN_RESET_RECEPTIONIST_PASSWORD',
+      entity: 'USER',
+      entityId: user.id,
+      endpoint: '/auth/receptionists/reset-password',
+      method: 'POST',
+      statusCode: 200,
+    });
+
+    return { message: 'Receptionist password reset successfully' };
   }
 
-  if (!PasswordUtils.validatePasswordStrength(newPassword)) {
-    throw new BadRequestException('Weak password');
+
+  /* ================= RECEPTIONIST SOFT DELETE ================= */
+
+  async softDeleteReceptionist(receptionistId: string, adminId: string) {
+    const user = await this.userRepository.findOne({
+      where: {
+        id: receptionistId,
+        role: RoleEnum.RECEPTIONIST,
+        isDeleted: false,
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('Receptionist not found');
+    }
+
+    user.isDeleted = true;
+    user.isActive = false; // Deactivate as well
+
+    await this.userRepository.save(user);
+
+    await this.sessionService.revokeAllUserSessions(
+      user.id,
+      SessionAuditAction.ACCOUNT_DELETED,
+      'Admin soft deleted receptionist',
+    );
+
+    // 🧾 Audit log
+    await this.auditService.log({
+      actorId: adminId,
+      actorRole: RoleEnum.ADMIN,
+      action: 'ADMIN_DELETE_RECEPTIONIST',
+      entity: 'USER',
+      entityId: user.id,
+      endpoint: '/auth/receptionists/:id',
+      method: 'DELETE',
+      statusCode: 200,
+    });
+
+    return { message: 'Receptionist deleted successfully' };
   }
-
-  // 🔐 Hash password
-  user.password = await PasswordUtils.hashPassword(newPassword);
-
-  // 🔄 Reset security flags
-  user.failedLoginAttempts = 0;
-  user.accountLockedUntil = null;
-  user.passwordResetToken = null;
-  user.passwordResetTokenExpiresAt = null;
-
-  await this.userRepository.save(user);
-
-  // 🔥 Revoke all active sessions (VERY IMPORTANT)
-  await this.sessionService.revokeAllUserSessions(
-    user.id,
-    SessionAuditAction.PASSWORD_RESET,
-    'Admin reset receptionist password',
-  );
-
-  // 🧾 Audit log
-  await this.auditService.log({
-    actorId: adminId,
-    actorRole: RoleEnum.ADMIN,
-    action: 'ADMIN_RESET_RECEPTIONIST_PASSWORD',
-    entity: 'USER',
-    entityId: user.id,
-    endpoint: '/auth/receptionists/reset-password',
-    method: 'POST',
-    statusCode: 200,
-  });
-
-  return { message: 'Receptionist password reset successfully' };
-}
-
-
 }
