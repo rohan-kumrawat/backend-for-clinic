@@ -171,5 +171,11 @@ export class PatientsController {
   async deletePatient(@Param('id', ParseUUIDPipe) id: string) {
     return this.patientsService.softDeletePatient(id);
   }
+
+  @Delete(':id/hard')
+  @Roles(RoleEnum.ADMIN)
+  async hardDeletePatient(@Param('id', ParseUUIDPipe) id: string) {
+    return this.patientsService.hardDeletePatient(id);
+  }
 }
 

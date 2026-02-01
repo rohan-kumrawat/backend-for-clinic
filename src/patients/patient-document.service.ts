@@ -72,7 +72,7 @@ export class PatientDocumentService {
     });
   }
 
-   async deleteDocument(
+  async deleteDocument(
     patientId: string,
     documentId: string,
   ): Promise<{ success: true }> {
@@ -102,4 +102,32 @@ export class PatientDocumentService {
     return { success: true };
   }
 
+  async hardDeleteAllDocuments(
+    patientId: string,
+    manager: EntityManager,
+  ): Promise<void> {
+    const documents = await manager.find(PatientDocument, {
+      where: { patientId },
+      withDeleted: true, // Find ALL documents including soft deleted ones
+    });
+
+    if (documents.length > 0) {
+      // 1. Delete from Cloudinary
+      for (const doc of documents) {
+        if (doc.cloudinaryPublicId) {
+          try {
+            await this.cloudinary.deleteFile(doc.cloudinaryPublicId);
+          } catch (error) {
+            console.error(
+              `Failed to delete file from Cloudinary: ${doc.cloudinaryPublicId}`,
+              error,
+            );
+          }
+        }
+      }
+
+      // 2. Hard delete from DB
+      await manager.remove(PatientDocument, documents);
+    }
+  }
 }

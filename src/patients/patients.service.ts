@@ -8,6 +8,10 @@ import { PatientStatusEnum } from '../common/enums/patient-status.enum';
 import { PatientDashboardQueryDto } from './dto/dashboard-query.dto';
 import { PatientDocumentService } from './patient-document.service';
 import { UpdatePatientDto } from './dto/update-patient.dto';
+import { Session } from '../sessions/session.entity';
+import { Payment } from '../payments/payment.entity';
+import { Package } from '../packages/package.entity';
+import { FinancialSummary } from '../financial-summary/financial-summary.entity';
 
 export interface PatientListResponse {
   data: Patient[];
@@ -209,6 +213,51 @@ export class PatientsService {
       { isDeleted: true, status: PatientStatusEnum.INACTIVE },
     );
     return { success: true };
+  }
+
+  async hardDeletePatient(patientId: string): Promise<{ success: true }> {
+    const patient = await this.patientRepository.findOne({
+      where: { id: patientId },
+      withDeleted: true,
+    });
+
+    if (!patient) throw new NotFoundException('Patient not found');
+
+    const queryRunner = this.patientRepository.manager.connection.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // 1. Delete all documents (DB + Cloudinary)
+      await this.patientDocumentService.hardDeleteAllDocuments(
+        patientId,
+        queryRunner.manager,
+      );
+
+      // 2. Delete Financial Summaries
+      await queryRunner.manager.delete(FinancialSummary, { patientId });
+
+      // 3. Delete Payments
+      await queryRunner.manager.delete(Payment, { patientId });
+
+      // 4. Delete Sessions
+      await queryRunner.manager.delete(Session, { patientId });
+
+      // 5. Delete Packages
+      await queryRunner.manager.delete(Package, { patientId });
+
+      // 6. Delete Patient
+      await queryRunner.manager.remove(Patient, patient);
+
+      await queryRunner.commitTransaction();
+      return { success: true };
+
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   private async checkDuplicateRegistrationNumber(registrationNumber: string): Promise<void> {
