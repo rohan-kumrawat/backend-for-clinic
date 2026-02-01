@@ -43,35 +43,35 @@ export class PatientsController {
   }
 
   @Get(':patientId/documents')
-@Roles(RoleEnum.ADMIN, RoleEnum.RECEPTIONIST)
-async getPatientDocuments(
-  @Param('patientId', ParseUUIDPipe) patientId: string,
-) {
-  const documents =
-    await this.patientDocumentService.getDocumentsByPatientId(patientId);
+  @Roles(RoleEnum.ADMIN, RoleEnum.RECEPTIONIST)
+  async getPatientDocuments(
+    @Param('patientId', ParseUUIDPipe) patientId: string,
+  ) {
+    const documents =
+      await this.patientDocumentService.getDocumentsByPatientId(patientId);
 
-  return documents.map((doc) => ({
-    id: doc.id,
-    fileName: doc.fileName,
-    fileType: doc.fileType,
-    fileUrl: doc.fileUrl,
-    fileSize: doc.fileSize,
-    documentType: doc.documentType,
-    uploadedAt: doc.uploadedAt,
-  }));
-}
+    return documents.map((doc) => ({
+      id: doc.id,
+      fileName: doc.fileName,
+      fileType: doc.fileType,
+      fileUrl: doc.fileUrl,
+      fileSize: doc.fileSize,
+      documentType: doc.documentType,
+      uploadedAt: doc.uploadedAt,
+    }));
+  }
 
-@Delete(':patientId/documents/:documentId')
-@Roles(RoleEnum.ADMIN, RoleEnum.RECEPTIONIST)
-async deletePatientDocument(
-  @Param('patientId', ParseUUIDPipe) patientId: string,
-  @Param('documentId', ParseUUIDPipe) documentId: string,
-) {
-  return this.patientDocumentService.deleteDocument(
-    patientId,
-    documentId,
-  );
-}
+  @Delete(':patientId/documents/:documentId')
+  @Roles(RoleEnum.ADMIN, RoleEnum.RECEPTIONIST)
+  async deletePatientDocument(
+    @Param('patientId', ParseUUIDPipe) patientId: string,
+    @Param('documentId', ParseUUIDPipe) documentId: string,
+  ) {
+    return this.patientDocumentService.deleteDocument(
+      patientId,
+      documentId,
+    );
+  }
 
 
 
@@ -107,6 +107,22 @@ async deletePatientDocument(
     return this.patientsService.getPatients(query);
   }
 
+
+  @Patch(':id')
+  @Roles(RoleEnum.ADMIN, RoleEnum.RECEPTIONIST)
+  @UseInterceptors(FilesInterceptor('files', 10))
+  async updatePatient(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdatePatientDto,
+    @UploadedFiles() files?: Express.Multer.File[],
+  ) {
+    if (files?.length) {
+      for (const file of files) {
+        this.cloudinaryService.validateFile(file);
+      }
+    }
+    return this.patientsService.updatePatient(id, dto, files);
+  }
 
   @Patch(':id/activate')
   @Roles(RoleEnum.ADMIN)

@@ -41,7 +41,7 @@ export class PatientsService {
         status: dto.isOldPatient
           ? PatientStatusEnum.INACTIVE
           : PatientStatusEnum.ACTIVE,
-        isOldPatient: dto.isOldPatient ?? false,  
+        isOldPatient: dto.isOldPatient ?? false,
         referredDoctor: dto.referredDoctor || null,
       });
 
@@ -226,5 +226,63 @@ export class PatientsService {
 
   async markInactive(patientId: string): Promise<void> {
     await this.patientRepository.update({ id: patientId }, { status: PatientStatusEnum.INACTIVE });
+  }
+
+  async updatePatient(
+    id: string,
+    dto: UpdatePatientDto,
+    files?: Express.Multer.File[],
+  ): Promise<Patient> {
+    const patient = await this.getPatientById(id);
+    const queryRunner = this.patientRepository.manager.connection.createQueryRunner();
+
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // 1. Update basic details
+      const { deleteDocumentIds, ...updateData } = dto;
+
+      // Handle race condition for unique mobile number if it's being updated
+      if (updateData.mobile && updateData.mobile !== patient.mobile) {
+        const existingPatient = await queryRunner.manager.findOne(Patient, {
+          where: { mobile: updateData.mobile, isDeleted: false }
+        });
+        if (existingPatient) {
+          throw new ConflictException('Patient with this mobile number already exists');
+        }
+      }
+
+      await queryRunner.manager.update(Patient, { id }, updateData);
+
+      // 2. Delete documents if requested
+      if (deleteDocumentIds && deleteDocumentIds.length > 0) {
+        for (const docId of deleteDocumentIds) {
+          // Verify doc belongs to patient before deleting
+          const doc = await this.patientDocumentService.getDocumentsByPatientId(id);
+          const docToDelete = doc.find(d => d.id === docId);
+          if (docToDelete) {
+            await this.patientDocumentService.deleteDocument(id, docId);
+          }
+        }
+      }
+
+      // 3. Upload new files if provided
+      if (files && files.length > 0) {
+        await this.patientDocumentService.createDocuments(
+          queryRunner.manager,
+          id,
+          files,
+        );
+      }
+
+      await queryRunner.commitTransaction();
+      return this.getPatientById(id);
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
   }
 }
