@@ -17,7 +17,7 @@ import { SessionLoadFilterDto } from './dto/session-load-filter.dto';
 @UseGuards(AuthGuard('jwt'), RolesGuard)
 @Roles(RoleEnum.ADMIN)
 export class ReportsController {
-  constructor(private readonly reportsService: ReportsService) {}
+  constructor(private readonly reportsService: ReportsService) { }
 
   @Get('doctor-performance')
   async getDoctorPerformance(
@@ -42,7 +42,7 @@ export class ReportsController {
 
   @Get('patient-package-summary')
   async getPatientPackageSummary() {
-  return this.reportsService.getPatientPackageSummary();
+    return this.reportsService.getPatientPackageSummary();
   }
 
   @Get('referral-doctors')
@@ -50,6 +50,11 @@ export class ReportsController {
   @Roles(RoleEnum.ADMIN)
   async referralDoctorReport() {
     return this.reportsService.getReferralDoctorReport();
+  }
+
+  @Get('todays-data')
+  async getTodaysData() {
+    return this.reportsService.getTodaysData();
   }
 
 

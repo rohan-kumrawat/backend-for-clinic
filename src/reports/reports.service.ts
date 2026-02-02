@@ -9,8 +9,11 @@ import {
   PatientPackageSummaryResponse,
   RevenueSummaryResponse,
   SessionLoadResponse,
-  ReferralDoctorReportResponse
+  ReferralDoctorReportResponse,
 } from './dto/report-response.dto';
+import { TodaysDataResponseDto } from './dto/todays-data-response.dto';
+import { PaymentModeEnum } from '../common/enums/payment-mode.enum';
+
 import { DoctorPerformanceFilterDto } from './dto/doctor-performance-filter.dto';
 import { RevenueSummaryFilterDto } from './dto/revenue-summary-filter.dto';
 import { SessionLoadFilterDto } from './dto/session-load-filter.dto';
@@ -253,5 +256,125 @@ export class ReportsService {
     }
   }
 
+  async getTodaysData(): Promise<TodaysDataResponseDto> {
+    try {
+      const today = new Date();
+      // Format as YYYY-MM-DD for date columns
+      const todayStr = today.toISOString().split('T')[0];
 
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+      // 1. Revenue
+      // Today's revenue breakdown
+      const todaysPayments = await this.paymentRepository
+        .createQueryBuilder('payment')
+        .select('payment.paymentMode', 'mode')
+        .addSelect('SUM(payment.amountPaid)', 'total')
+        .where('payment.paymentDate = :todayStr', { todayStr })
+        .andWhere('payment.isDeleted = false')
+        .groupBy('payment.paymentMode')
+        .getRawMany();
+
+      let revenueTotal = 0;
+      let revenueCash = 0;
+      let revenueUpi = 0;
+      let revenueCard = 0;
+
+      todaysPayments.forEach(p => {
+        const amount = parseFloat(p.total) || 0;
+        revenueTotal += amount;
+        if (p.mode === PaymentModeEnum.CASH) revenueCash += amount;
+        else if (p.mode === PaymentModeEnum.UPI) revenueUpi += amount;
+        else if (p.mode === PaymentModeEnum.CARD) revenueCard += amount;
+      });
+
+      // Yesterday's total revenue for percentage change
+      const yesterdaysRevenueResult = await this.paymentRepository
+        .createQueryBuilder('payment')
+        .select('SUM(payment.amountPaid)', 'total')
+        .where('payment.paymentDate = :yesterdayStr', { yesterdayStr })
+        .andWhere('payment.isDeleted = false')
+        .getRawOne();
+
+      const yesterdaysRevenue = parseFloat(yesterdaysRevenueResult?.total) || 0;
+      let changePercent = 0;
+      if (yesterdaysRevenue > 0) {
+        changePercent = ((revenueTotal - yesterdaysRevenue) / yesterdaysRevenue) * 100;
+      } else if (revenueTotal > 0) {
+        changePercent = 100;
+      }
+      // Round to 1 decimal place
+      changePercent = Math.round(changePercent * 10) / 10;
+
+
+      // 2. Sessions
+      const sessionsResult = await this.sessionRepository
+        .createQueryBuilder('session')
+        .select('COUNT(*)', 'total')
+        .addSelect("SUM(CASE WHEN session.isFreeSession = true THEN 1 ELSE 0 END)", 'free')
+        .addSelect("SUM(CASE WHEN session.isFreeSession = false THEN 1 ELSE 0 END)", 'paid')
+        .where('session.sessionDate = :todayStr', { todayStr })
+        .andWhere('session.isDeleted = false')
+        .getRawOne();
+
+      const sessionsTotal = parseInt(sessionsResult?.total) || 0;
+      const sessionsFree = parseInt(sessionsResult?.free) || 0;
+      const sessionsPaid = parseInt(sessionsResult?.paid) || 0;
+
+
+      // 3. Patients
+      // New Registrations (Created today)
+      // Since createdAt is timestamptz, we need range for today
+      // However, for simplicity allowing database to handle casting if possible, or constructing range in code
+      // Constructing range is safer for timestamptz
+      const startOfDay = new Date(todayStr + 'T00:00:00.000Z');
+      const endOfDay = new Date(todayStr + 'T23:59:59.999Z');
+
+      const newRegistrationsCount = await this.patientRepository
+        .createQueryBuilder('patient')
+        .where('patient.createdAt >= :startOfDay', { startOfDay })
+        .andWhere('patient.createdAt <= :endOfDay', { endOfDay })
+        .andWhere('patient.isDeleted = false')
+        .getCount();
+
+      // Existing Patients Returned (Session today but created BEFORE today)
+      // We check sessions strictly today, join with patient, check patient.createdAt < startOfDay
+      const existingReturnedCount = await this.sessionRepository
+        .createQueryBuilder('session')
+        .innerJoin(Patient, 'patient', 'patient.id = session.patientId')
+        .where('session.sessionDate = :todayStr', { todayStr })
+        .andWhere('session.isDeleted = false')
+        .andWhere('patient.createdAt < :startOfDay', { startOfDay })
+        .select('COUNT(DISTINCT session.patientId)', 'count')
+        .getRawOne();
+
+      const existingPatientsReturned = parseInt(existingReturnedCount?.count) || 0;
+
+      return {
+        date: todayStr,
+        revenue: {
+          total: revenueTotal,
+          cash: revenueCash,
+          upi: revenueUpi,
+          card: revenueCard,
+          changeFromYesterdayPercent: changePercent,
+        },
+        sessions: {
+          total: sessionsTotal,
+          paid: sessionsPaid,
+          free: sessionsFree,
+        },
+        patients: {
+          newRegistrations: newRegistrationsCount,
+          existingPatientsReturned: existingPatientsReturned,
+        },
+      };
+
+    } catch (error) {
+      console.error('Error fetching todays data:', error);
+      throw new InternalServerErrorException('Failed to fetch today\'s data');
+    }
+  }
 }
