@@ -118,3 +118,97 @@ Returns the created package details.
 
 **Response (Success):**
 Returns the created payment record.
+
+---
+
+## 4. Upload Patient Documents API
+
+**Endpoint:** `POST /patients/:patientId/documents`
+
+**Description:** Uploads one or more documents for a specific patient.
+
+**Authorization roles:** `ADMIN`, `RECEPTIONIST`
+
+**Headers:**
+*   `Authorization`: `Bearer <your_access_token>`
+
+**Path Parameters:**
+*   `patientId`: UUID of the patient.
+
+**Request Body (FormData):**
+This endpoint requires `multipart/form-data`.
+
+| Field | Type | Required | Constraints | Description |
+| :--- | :--- | :--- | :--- | :--- |
+| `files` | File[] | Yes | Max 10 files. Max 5MB each. | List of files to upload. Allowed: `jpg`, `jpeg`, `png`, `pdf`. |
+
+**Example Request (cURL):**
+```bash
+curl -X POST "{{prod_base_url}}/patients/{{patient_id}}/documents" \
+  -H "Authorization: Bearer <token>" \
+  -F "files=@/path/to/report.pdf" \
+  -F "files=@/path/to/scan.jpg"
+```
+
+**Response (Success):**
+Returns a JSON object containing the success status and the list of uploaded document details.
+
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+      "fileName": "report.pdf",
+      "fileType": "application/pdf",
+      "fileUrl": "https://res.cloudinary.com/...",
+      "fileSize": 102400,
+      "documentType": "REPORT",
+      "uploadedAt": "2023-10-27T10:00:00.000Z"
+    }
+  ]
+}
+```
+
+**Error Responses:**
+
+*   **400 Bad Request:** "No files provided", "Invalid file type", or "File too large".
+*   **401 Unauthorized:** Invalid or missing token.
+*   **403 Forbidden:** User does not have `ADMIN` or `RECEPTIONIST` role.
+
+---
+
+## 5. Hard Delete Patient API
+
+**Endpoint:** `DELETE /patients/:id/hard`
+
+**Description:** Permanently deletes a patient and all their associated data (documents, payments, sessions, packages, etc.) from the database and Cloudinary. **This action is irreversible.**
+
+**Authorization roles:** `ADMIN`
+
+**Headers:**
+*   `Authorization`: `Bearer <your_access_token>`
+
+**Path Parameters:**
+*   `id`: UUID of the patient to delete.
+
+**Example Request (cURL):**
+```bash
+curl -X DELETE "{{prod_base_url}}/patients/{{patient_id}}/hard" \
+  -H "Authorization: Bearer <token>"
+```
+
+**Response (Success):**
+Returns a success object.
+
+```json
+{
+  "success": true
+}
+```
+
+**Error Responses:**
+*   **401 Unauthorized:** Invalid or missing token.
+*   **403 Forbidden:** User does not have `ADMIN` role.
+*   **404 Not Found:** Patient not found.
+
